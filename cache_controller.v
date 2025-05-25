@@ -19,6 +19,7 @@ module cache_controller #(
     output [WORD_SIZE-1:0] cpu_res_dataout,  // 1 word response data output to cpu
     output cpu_res_ready,
     input cpu_req_rw,  // r = 0, w = 1
+    output cpu_req_rw_reg,  // registered version of cpu_req_rw
     input cpu_req_enable,
 
     // Cache controller to main memory signals
@@ -60,12 +61,22 @@ module cache_controller #(
   parameter SEND_TO_CACHE = 3'b100;
 
 
+  // Instantiate flipflop_d module for cpu_req_addr_reg
   flipflop_d #(.WIDTH(WORD_SIZE)) cpu_req_addr_reg_inst (
       .clk(clk),
       .rst_n(rst_n),
       .load(cpu_req_enable),
       .d(cpu_req_addr),
       .q(cpu_req_addr_reg)
+  );
+
+  // Instantiate flipflop_d module for cpu_req_rw_reg
+  flipflop_d #(.WIDTH(1)) cpu_req_rw_reg_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .load(cpu_req_enable),
+      .d(cpu_req_rw),
+      .q(cpu_req_rw_reg)
   );
 
   //CPU Address = tag + index + block offset + byte offset
@@ -189,7 +200,7 @@ module cache_controller #(
       // READ: shouldn't reach this because cache_rw disables HIT READ
       : 512'dz);
 
-  assign cache_rw = cpu_req_rw | miss; // only write to cache when cpu is writing or there was a cache miss 
+  assign cache_rw = cpu_req_rw_reg | miss; // only write to cache when cpu is writing or there was a cache miss 
 
   assign candidate_write[TAG_START+TAG_BITS-1:TAG_START] = hit ? 
     (hit_1 ? candidate_1_tag : 
@@ -330,7 +341,7 @@ module cache_controller #(
         cache_rw = cpu_req_rw;  // Use CPU's read/write signal
 
         // On read hit, provide data to CPU
-        if (!cpu_req_rw && hit) begin
+        if (!cpu_req_rw_reg && hit) begin
           cpu_res_ready = 1'b1;
           cpu_res_dataout = candidate_hit_data[cpu_addr_block_offset * WORD_SIZE + WORD_SIZE - 1 : cpu_addr_block_offset * WORD_SIZE];
         end
