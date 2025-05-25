@@ -63,13 +63,13 @@ module cache_controller #(
   reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0]
       candidate_1_reg, candidate_2_reg, candidate_3_reg, candidate_4_reg;
 
-  // Register candidate data when cache_read is active
+  // Register candidate data when cache_ready is active
   flipflop_d #(
       .WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)
   ) candidate_1_reg_inst (
       .clk(clk),
       .rst_n(rst_n),
-      .load(cache_read),  // Only load when cache_read is active
+      .load(cache_ready & ~cache_rw),  // Only load when cache_ready is active
       .d(candidate_1),
       .q(candidate_1_reg)
   );
@@ -79,7 +79,7 @@ module cache_controller #(
   ) candidate_2_reg_inst (
       .clk(clk),
       .rst_n(rst_n),
-      .load(cache_read),
+      .load(cache_ready & ~cache_rw),
       .d(candidate_2),
       .q(candidate_2_reg)
   );
@@ -89,7 +89,7 @@ module cache_controller #(
   ) candidate_3_reg_inst (
       .clk(clk),
       .rst_n(rst_n),
-      .load(cache_read),
+      .load(cache_ready & ~cache_rw),
       .d(candidate_3),
       .q(candidate_3_reg)
   );
@@ -99,7 +99,7 @@ module cache_controller #(
   ) candidate_4_reg_inst (
       .clk(clk),
       .rst_n(rst_n),
-      .load(cache_read),
+      .load(cache_ready & ~cache_rw),
       .d(candidate_4),
       .q(candidate_4_reg)
   );
@@ -185,7 +185,8 @@ module cache_controller #(
   assign miss  = ~hit;
 
   // The least recently used (LRU) candidate is the one with the highest age (one hot encoding)
-  wire [BANK-1:0] LRU_candidate = {
+  wire [BANK-1:0] LRU_candidate;
+  assign LRU_candidate = {
     (candidate_4_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
     (candidate_3_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
     (candidate_2_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
@@ -204,7 +205,6 @@ module cache_controller #(
     if (hit_3) candidate_hit_data = candidate_3_reg[BLOCK_DATA_WIDTH-1:0];
     if (hit_4) candidate_hit_data = candidate_4_reg[BLOCK_DATA_WIDTH-1:0];
   end
-
 
   wire evict_1, evict_2, evict_3, evict_4, evict;
   assign evict_1 = (candidate_1_reg[VALID_BIT_START] == 1'b1 && candidate_1_reg[DIRTY_BIT_START] == 1'b1);
@@ -228,15 +228,15 @@ module cache_controller #(
       LRU_candidate[3] ? candidate_4_reg[BLOCK_DATA_WIDTH-1:0] : 32'd0
   ) : 32'dz;
 
-  // On WRITE MISS, take the block from main memory (mem_req_dataout) and write the cpu data word at the correct block offset
+  // On WRITE MISS, take the block from main memory (mem_req_datain) and write the cpu data word at the correct block offset
   // to prepare it for writing it to cache
   wire [BLOCK_DATA_WIDTH-1:0] modified_mem_block;
   replacer R_WRITE_MISS (
-      .data_in(mem_req_dataout),
+      .data_in(mem_req_datain),
       .block_offset(cpu_addr_block_offset),
       .data_write(cpu_req_datain),
       .data_out(modified_mem_block),
-      .enable(cache_rw & miss)  // write miss
+      .enable(cache_rw & miss)
   );
 
   // On WRITE HIT, take the hit block and write the cpu data word at the correct block offset
@@ -246,7 +246,7 @@ module cache_controller #(
       .block_offset(cpu_addr_block_offset),
       .data_write(cpu_req_datain),
       .data_out(modified_candidate_block),
-      enable(cache_rw & hit)  // write hit
+      .enable(cache_rw & hit)
   );
 
   assign candidate_write[BLOCK_DATA_WIDTH-1:0] = (miss) ?
@@ -263,10 +263,12 @@ module cache_controller #(
 
   assign cache_rw = cpu_req_rw_reg | miss; // only write to cache when cpu is writing or there was a cache miss 
 
-  assign candidate_write[TAG_START+TAG_BITS-1:TAG_START] = hit ? 
-    (hit_1 ? candidate_1_tag : 
-     (hit_2 ? candidate_2_tag : 
-     (hit_3 ? candidate_3_tag : candidate_4_tag))) : cpu_addr_tag; // write the tag of the hit candidate or the current cpu address tag
+  // write the tag of the hit candidate or the current cpu address tag
+  assign candidate_write[TAG_START+TAG_BITS-1:TAG_START] = 
+      hit ? 
+      (hit_1 ? candidate_1_tag : 
+      (hit_2 ? candidate_2_tag : 
+     (hit_3 ? candidate_3_tag : candidate_4_tag))) : cpu_addr_tag;
 
   assign candidate_write[AGE_START+AGE_BITS-1:AGE_START] = 2'b00;
 
@@ -276,10 +278,11 @@ module cache_controller #(
                       hit_3 ? candidate_3_age :
                       hit_4 ? candidate_4_age : 2'b00;
 
+
   // Age calculation for cache candidates
   // On HIT: Reset age of accessed candidate to 0, and increment ages of valid candidates that were less than hit_element_age
   // On MISS: Increment age of all valid candidates (allow overflow since LRU will be replaced)
-  
+
   // Age calculation when there is a hit
   // For the accessed candidate: reset to 0
   // For other valid candidates: increment only if their age was less than the hit element's age
@@ -287,7 +290,7 @@ module cache_controller #(
   wire [AGE_BITS-1:0] age_2_hit = hit_2 ? 2'b00 : candidate_2_valid ? (candidate_2_age < hit_element_age ? candidate_2_age + 1 : candidate_2_age) : candidate_2_age;
   wire [AGE_BITS-1:0] age_3_hit = hit_3 ? 2'b00 : candidate_3_valid ? (candidate_3_age < hit_element_age ? candidate_3_age + 1 : candidate_3_age) : candidate_3_age;
   wire [AGE_BITS-1:0] age_4_hit = hit_4 ? 2'b00 : candidate_4_valid ? (candidate_4_age < hit_element_age ? candidate_4_age + 1 : candidate_4_age) : candidate_4_age;
-  
+
   // Age calculation when there is a miss
   // For valid candidates: increment age (allow overflow back to 00)
   // For invalid candidates: keep current age
@@ -318,7 +321,7 @@ module cache_controller #(
   // State transition logic
   always @(*) begin
     // Default: stay in current state if there are no conditions to change!
-    next_state = current_state;  
+    next_state = current_state;
 
     case (current_state)
       IDLE: begin
@@ -335,8 +338,8 @@ module cache_controller #(
             // Miss: check if we need to evict
             if (evict) begin
               next_state = EVICT;  // Need to evict before allocating
-            end else if (mem_req_ready) begin
-              next_state = ALLOCATE;  // No eviction needed, memory ready
+            end else begin
+              next_state = ALLOCATE;  // No eviction needed
             end
           end
         end
@@ -396,12 +399,11 @@ module cache_controller #(
       end
 
       SEND_TO_CACHE: begin
-        if(cpu_req_addr_reg) begin
+        if (cpu_req_addr_reg) begin
           // Write to cache
           cache_enable = 1'b1;
           cache_rw = 1'b1;
-        end
-        else begin
+        end else begin
           // Write to CPU
           cpu_res_dataout = candidate_hit_data[cpu_addr_block_offset * WORD_SIZE + WORD_SIZE - 1 : cpu_addr_block_offset * WORD_SIZE];
           cpu_res_ready = 1'b1;
