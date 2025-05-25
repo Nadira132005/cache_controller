@@ -32,20 +32,20 @@ module cache_controller_tb ();
   wire [WORD_SIZE-1:0] mem_req_addr;
   wire [BLOCK_DATA_WIDTH-1:0] mem_req_dataout;
   logic [BLOCK_DATA_WIDTH-1:0] mem_req_datain;
-  wire mem_req_ready;
+  reg mem_req_ready;
 
   // Cache signals                                                            
   wire cache_enable;
   wire cache_rw;
   wire cache_ready;
-  wire [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_1;
-  wire [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_2;
-  wire [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_3;
-  wire [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_4;
-  wire [AGE_BITS-1:0] age_1;
-  wire [AGE_BITS-1:0] age_2;
-  wire [AGE_BITS-1:0] age_3;
-  wire [AGE_BITS-1:0] age_4;
+  reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_1;
+  reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_2;
+  reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_3;
+  reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_4;
+  reg [AGE_BITS-1:0] age_1;
+  reg [AGE_BITS-1:0] age_2;
+  reg [AGE_BITS-1:0] age_3;
+  reg [AGE_BITS-1:0] age_4;
   wire [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_write;
   wire [BANK-1:0] bank_selector;
 
@@ -191,7 +191,7 @@ module cache_controller_tb ();
                        1'b1, 1'b1, 1'b1, 1'b1);
     #10;
     cache_ready = 1;
-    cpu_read(32'h00000ABC0);  // This should hit in candidate 1             
+    cpu_read(32'h0000_0ABC);  // This should hit in candidate 1             
     wait_for_cache_access();
     #20;
 
@@ -216,7 +216,7 @@ module cache_controller_tb ();
     #10;
     cache_ready = 1;
     test_word_data = 32'hCAFEBABE;
-    cpu_write(32'h00000DEF4,
+    cpu_write(32'h0000_0DEF,
               test_word_data);  // This should hit in candidate 3                                                                     
     wait_for_cache_access();
     #20;
@@ -238,8 +238,8 @@ module cache_controller_tb ();
 
     // Test case 5: Read hit after write                                    
     $display("\nTest Case 5: Read hit after write");
-    provide_candidates(12'h0000_0ABF, candidate_write[BLOCK_DATA_WIDTH-1:0], 2'b11, 2'b10, 2'b01,
-                       2'b00, 1'b1, 1'b1, 1'b1, 1'b1);
+    provide_candidates(12'h00B, candidate_write[BLOCK_DATA_WIDTH-1:0], 2'b11, 2'b10, 2'b01, 2'b00,
+                       1'b1, 1'b1, 1'b1, 1'b1);
     #10;
     cache_ready = 1;
     cpu_read(32'h0000_0ABC);  // This should hit in candidate 4             
