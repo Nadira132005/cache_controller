@@ -60,8 +60,6 @@ module cache_controller #(
   parameter SEND_TO_CACHE = 3'b100;
 
 
-  //CPU Address = tag + index + block offset + byte offset
-  // Instantiate flipflop_d module for cpu_req_addr_reg
   flipflop_d #(.WIDTH(WORD_SIZE)) cpu_req_addr_reg_inst (
       .clk(clk),
       .rst_n(rst_n),
@@ -70,6 +68,7 @@ module cache_controller #(
       .q(cpu_req_addr_reg)
   );
 
+  //CPU Address = tag + index + block offset + byte offset
   assign cpu_addr_block_offset = cpu_req_addr_reg[BLOCK_OFFSET-1:0];
   assign cpu_addr_index        = cpu_req_addr_reg[BLOCK_OFFSET+SETS_BITS-1:BLOCK_OFFSET];
   assign cpu_addr_tag          = cpu_req_addr_reg[WORD_SIZE-1:BLOCK_OFFSET+SETS_BITS];
