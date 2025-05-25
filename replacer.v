@@ -7,8 +7,8 @@ module replacer #(
     input wire [BLOCK_SIZE-1:0] data_in,
     input wire [NUM_SEGMENTS_LOG-1:0] block_offset,  // block_offset signal to select the segment
     input wire [WORD_SIZE-1:0] data_write,  // Data to overwrite
-    output reg [BLOCK_SIZE-1:0] data_out  // Data output
     input wire enable,
+    output reg [BLOCK_SIZE-1:0] data_out  // Data output
 );
 
   always @(*) begin
