@@ -322,7 +322,6 @@ module cache_controller #(
 
 
   reg [3:0] current_state, next_state;
-  wire cache_rw;
 
   // State transition logic
   always @(*) begin
