@@ -200,7 +200,7 @@ module cache_controller #(
       // READ: shouldn't reach this because cache_rw disables HIT READ
       : 512'dz);
 
-  assign cache_rw = cpu_req_rw_reg | miss; // only write to cache when cpu is writing or there was a cache miss 
+  assign cache_rw = cpu_req_rw_reg; // only write to cache when cpu is writing
 
   assign candidate_write[TAG_START+TAG_BITS-1:TAG_START] = hit ? 
     (hit_1 ? candidate_1_tag : 
