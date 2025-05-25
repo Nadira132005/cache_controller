@@ -32,12 +32,12 @@ module cache_controller_tb ();
   wire [WORD_SIZE-1:0] mem_req_addr;
   wire [BLOCK_DATA_WIDTH-1:0] mem_req_dataout;
   logic [BLOCK_DATA_WIDTH-1:0] mem_req_datain;
-  reg mem_req_ready;
+  logic mem_req_ready;
 
   // Cache signals                                                            
   wire cache_enable;
   wire cache_rw;
-  wire cache_ready;
+  logic cache_ready;
   reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_1;
   reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_2;
   reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_3;
@@ -139,9 +139,7 @@ module cache_controller_tb ();
     candidate_1 = {valid1, dirty1, age1, tag, block_data};
     candidate_2 = {valid2, dirty2, age2, tag, block_data};
     candidate_3 = {valid3, dirty3, age3, tag, block_data};
-    candidate_4 = {
-      valid4, dirty4, age4, age4, tag, block_data
-    };  // Note: age4 is repeated intentionally                                                  
+    candidate_4 = {valid4, dirty4, age4, age4, tag, block_data};  // Note: age4 is repeated intentionally                                                  
 
     // Wait for cache to be accessed                                        
     if (cache_ready) begin
@@ -158,12 +156,18 @@ module cache_controller_tb ();
   task wait_for_mem_req();
     wait (mem_req_enable);
     $display("Memory request asserted at time %0t", $time);
+    mem_req_ready = 1;  // Indicate memory has valid data
+    @(posedge clk);
+    mem_req_ready = 0;
   endtask
 
   // Task to wait for cache access to complete                                
   task wait_for_cache_access();
     wait (cache_enable == 0);
     $display("Cache access completed at time %0t", $time);
+    cache_ready = 1;  // Indicate cache has valid data
+    @(posedge clk);
+    cache_ready = 0;
   endtask
 
   // Test process                                                             
@@ -184,6 +188,7 @@ module cache_controller_tb ();
 
     // Release reset                                                        
     #10 rst_n = 1;
+    #10 rst_n = 1;  // Release reset after a short delay
 
     // Test case 1: Read hit in candidate 1                                 
     $display("\nTest Case 1: Read hit in candidate 1");
