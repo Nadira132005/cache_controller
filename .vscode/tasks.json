@@ -3,6 +3,7 @@
   "tasks": [
     {
       "label": "Format Verilog with Verible",
+      "identifier": "Format Verilog with Verible",
       "type": "shell",
       "command": "verible-verilog-format",
       "args": ["--inplace", "--", "${file}"],
