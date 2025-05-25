@@ -317,7 +317,14 @@ module cache_controller #(
       1'bz);
 
   assign candidate_write[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START] = 1'b1;
-  assign cpu_res_dataout = candidate_hit_data[cpu_addr_block_offset * WORD_SIZE + WORD_SIZE - 1 : cpu_addr_block_offset * WORD_SIZE];
+  block_selector #(
+    .WORD_SIZE(WORD_SIZE),
+    .BLOCK_DATA_WIDTH(BLOCK_DATA_WIDTH)
+  ) data_selector (
+    .block_data(candidate_hit_data),
+    .block_offset(cpu_addr_block_offset),
+    .selected_word(cpu_res_dataout)
+  );
 
   reg [3:0] current_state, next_state;
 
