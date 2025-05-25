@@ -1,7 +1,7 @@
 [
   {
-    "key": "ctrl+shift+t",
-    "command": "workbench.action.tasks.runTask",
+    "key": "ctrl+shift+i",
+    "command": "workbench.action.runTask",
     "args": "Format Verilog with Verible",
     "when": "editorTextFocus && editorLangId == 'verilog'"
   }
