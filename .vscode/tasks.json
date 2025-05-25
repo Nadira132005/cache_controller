@@ -18,6 +18,10 @@
         "panel": "shared",
         "showReuseMessage": true,
         "clear": false
+      },
+      "isPrimary": true,
+      "runOptions": {
+        "reevaluateOnRerun": true
       }
     }
   ]

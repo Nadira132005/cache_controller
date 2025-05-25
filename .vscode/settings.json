@@ -1,9 +1,11 @@
 {
   "editor.formatOnSave": true,
   "[verilog]": {
+    "editor.defaultFormatter": "vscode-typescript-builtin",
     "editor.formatOnSave": true
   },
   "verible-verilog-format.enable": true,
   "verible-verilog-format.executable": "verible-verilog-format",
-  "verible-verilog-format.formatArgs": ["--inplace", "--print_changes"]
+  "verible-verilog-format.formatArgs": ["--inplace", "--print_changes"],
+  "editor.formatOnSaveTimeout": 5000
 }
