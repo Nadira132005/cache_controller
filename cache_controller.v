@@ -271,27 +271,34 @@ module cache_controller #(
   assign candidate_write[AGE_START+AGE_BITS-1:AGE_START] = 2'b00;
 
 
-  assign LRU_prev_age = hit_1 ? candidate_1_age :
+  assign hit_element_age = hit_1 ? candidate_1_age :
                       hit_2 ? candidate_2_age :
                       hit_3 ? candidate_3_age :
                       hit_4 ? candidate_4_age : 2'b00;
 
-  assign age_1 = hit_1 ? 2'b00 : 
-                 (candidate_1_valid) ? 
-                 (candidate_1_age < LRU_prev_age ? candidate_1_age + 1 : candidate_1_age) : 
-                 candidate_1_age;
-  assign age_2 = hit_2 ? 2'b00 : 
-                 (candidate_2_valid) ? 
-                 (candidate_2_age < LRU_prev_age ? candidate_2_age + 1 : candidate_2_age) : 
-                 candidate_2_age;
-  assign age_3 = hit_3 ? 2'b00 : 
-                 (candidate_3_valid) ? 
-                 (candidate_3_age < LRU_prev_age ? candidate_3_age + 1 : candidate_3_age) : 
-                 candidate_3_age;
-  assign age_4 = hit_4 ? 2'b00 : 
-                 (candidate_4_valid) ? 
-                 (candidate_4_age < LRU_prev_age ? candidate_4_age + 1 : candidate_4_age) : 
-                 candidate_4_age;
+  // Age calculation for cache candidates
+  // On HIT: Reset age of accessed candidate to 0, others keep their age
+  // On MISS: Increment age of all valid candidates, invalid candidates keep their age
+  
+  // Age calculation when there is a hit
+  wire [AGE_BITS-1:0] age_1_hit = hit_1 ? 2'b00 : candidate_1_age;
+  wire [AGE_BITS-1:0] age_2_hit = hit_2 ? 2'b00 : candidate_2_age;
+  wire [AGE_BITS-1:0] age_3_hit = hit_3 ? 2'b00 : candidate_3_age;
+  wire [AGE_BITS-1:0] age_4_hit = hit_4 ? 2'b00 : candidate_4_age;
+  
+  // Age calculation when there is a miss
+  // For valid candidates: increment age (cap at max value 2'b11)
+  // For invalid candidates: keep current age
+  wire [AGE_BITS-1:0] age_1_miss = candidate_1_valid ? (candidate_1_age == 2'b11 ? 2'b11 : candidate_1_age + 1) : candidate_1_age;
+  wire [AGE_BITS-1:0] age_2_miss = candidate_2_valid ? (candidate_2_age == 2'b11 ? 2'b11 : candidate_2_age + 1) : candidate_2_age;
+  wire [AGE_BITS-1:0] age_3_miss = candidate_3_valid ? (candidate_3_age == 2'b11 ? 2'b11 : candidate_3_age + 1) : candidate_3_age;
+  wire [AGE_BITS-1:0] age_4_miss = candidate_4_valid ? (candidate_4_age == 2'b11 ? 2'b11 : candidate_4_age + 1) : candidate_4_age;
+
+  // Select between hit and miss age calculations based on whether there was a hit
+  assign age_1 = hit ? age_1_hit : age_1_miss;
+  assign age_2 = hit ? age_2_hit : age_2_miss;
+  assign age_3 = hit ? age_3_hit : age_3_miss;
+  assign age_4 = hit ? age_4_hit : age_4_miss;
 
   assign candidate_write[DIRTY_BIT_START+DIRTY_BIT-1:DIRTY_BIT_START] =
       // Set dirty on WRITE (either hit or miss)
