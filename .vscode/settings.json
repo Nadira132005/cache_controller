@@ -1,7 +1,6 @@
 {
   "editor.formatOnSave": true,
   "[verilog]": {
-    "editor.defaultFormatter": "vscode.verible-verilog-format",
     "editor.formatOnSave": true
   },
   "verible-verilog-format.enable": true,
