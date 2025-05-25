@@ -152,7 +152,7 @@ module cache_controller #(
   // and must be chosen by LRU policy
   assign bank_selector = hit ? {hit_1, hit_2, hit_3, hit_4} : bank_selector_miss;
 
-  // Register candidates when cache_read is set
+  // If there is a WRITE HIT we want to know which block we will put the data in
   wire [BLOCK_DATA_WIDTH-1:0] candidate_hit_data;
   always @(*) begin
     if (hit_1) candidate_hit_data = candidate_1_reg[BLOCK_DATA_WIDTH-1:0];
@@ -352,5 +352,38 @@ module cache_controller #(
       current_state <= next_state;
     end
   end
+
+  // Register candidate data when cache_read is active
+  flipflop_d #(.WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)) candidate_1_reg_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .load(cache_read),  // Only load when cache_read is active
+      .d(candidate_1),
+      .q(candidate_1_reg)
+  );
+
+  flipflop_d #(.WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)) candidate_2_reg_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .load(cache_read),
+      .d(candidate_2),
+      .q(candidate_2_reg)
+  );
+
+  flipflop_d #(.WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)) candidate_3_reg_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .load(cache_read),
+      .d(candidate_3),
+      .q(candidate_3_reg)
+  );
+
+  flipflop_d #(.WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)) candidate_4_reg_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .load(cache_read),
+      .d(candidate_4),
+      .q(candidate_4_reg)
+  );
 
 endmodule
