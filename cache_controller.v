@@ -143,38 +143,38 @@ module cache_controller #(
   wire [ AGE_BITS-1:0] candidate_1_age;
   wire [DIRTY_BIT-1:0] candidate_1_dirty;
   wire [VALID_BIT-1:0] candidate_1_valid;
-  assign candidate_1_age   = candidate_1[AGE_START+AGE_BITS-1:AGE_START];
-  assign candidate_1_dirty = candidate_1[DIRTY_BIT_START+DIRTY_BIT-1:DIRTY_BIT_START];
-  assign candidate_1_valid = candidate_1[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START];
-  assign candidate_1_tag   = candidate_1[TAG_START+TAG_BITS-1:TAG_START];
+  assign candidate_1_age   = candidate_1_reg[AGE_START+AGE_BITS-1:AGE_START];
+  assign candidate_1_dirty = candidate_1_reg[DIRTY_BIT_START+DIRTY_BIT-1:DIRTY_BIT_START];
+  assign candidate_1_valid = candidate_1_reg[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START];
+  assign candidate_1_tag   = candidate_1_reg[TAG_START+TAG_BITS-1:TAG_START];
 
 
   wire [ TAG_BITS-1:0] candidate_2_tag;
   wire [ AGE_BITS-1:0] candidate_2_age;
   wire [DIRTY_BIT-1:0] candidate_2_dirty;
   wire [VALID_BIT-1:0] candidate_2_valid;
-  assign candidate_2_age   = candidate_2[AGE_START+AGE_BITS-1:AGE_START];
-  assign candidate_2_dirty = candidate_2[DIRTY_BIT_START+DIRTY_BIT-1:DIRTY_BIT_START];
-  assign candidate_2_valid = candidate_2[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START];
-  assign candidate_2_tag   = candidate_2[TAG_START+TAG_BITS-1:TAG_START];
+  assign candidate_2_age   = candidate_2_reg[AGE_START+AGE_BITS-1:AGE_START];
+  assign candidate_2_dirty = candidate_2_reg[DIRTY_BIT_START+DIRTY_BIT-1:DIRTY_BIT_START];
+  assign candidate_2_valid = candidate_2_reg[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START];
+  assign candidate_2_tag   = candidate_2_reg[TAG_START+TAG_BITS-1:TAG_START];
 
   wire [ TAG_BITS-1:0] candidate_3_tag;
   wire [ AGE_BITS-1:0] candidate_3_age;
   wire [DIRTY_BIT-1:0] candidate_3_dirty;
   wire [VALID_BIT-1:0] candidate_3_valid;
-  assign candidate_3_age   = candidate_3[AGE_START+AGE_BITS-1:AGE_START];
-  assign candidate_3_dirty = candidate_3[DIRTY_BIT_START+DIRTY_BIT-1:DIRTY_BIT_START];
-  assign candidate_3_valid = candidate_3[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START];
-  assign candidate_3_tag   = candidate_3[TAG_START+TAG_BITS-1:TAG_START];
+  assign candidate_3_age   = candidate_3_reg[AGE_START+AGE_BITS-1:AGE_START];
+  assign candidate_3_dirty = candidate_3_reg[DIRTY_BIT_START+DIRTY_BIT-1:DIRTY_BIT_START];
+  assign candidate_3_valid = candidate_3_reg[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START];
+  assign candidate_3_tag   = candidate_3_reg[TAG_START+TAG_BITS-1:TAG_START];
 
   wire [ TAG_BITS-1:0] candidate_4_tag;
   wire [ AGE_BITS-1:0] candidate_4_age;
   wire [DIRTY_BIT-1:0] candidate_4_dirty;
   wire [VALID_BIT-1:0] candidate_4_valid;
-  assign candidate_4_age   = candidate_4[AGE_START+AGE_BITS-1:AGE_START];
-  assign candidate_4_dirty = candidate_4[DIRTY_BIT_START+DIRTY_BIT-1:DIRTY_BIT_START];
-  assign candidate_4_valid = candidate_4[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START];
-  assign candidate_4_tag   = candidate_4[TAG_START+TAG_BITS-1:TAG_START];
+  assign candidate_4_age   = candidate_4_reg[AGE_START+AGE_BITS-1:AGE_START];
+  assign candidate_4_dirty = candidate_4_reg[DIRTY_BIT_START+DIRTY_BIT-1:DIRTY_BIT_START];
+  assign candidate_4_valid = candidate_4_reg[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START];
+  assign candidate_4_tag   = candidate_4_reg[TAG_START+TAG_BITS-1:TAG_START];
 
   wire hit, hit_1, hit_2, hit_3, hit_4, miss;
   assign hit_1 = (candidate_1_tag == cpu_addr_tag && candidate_1[VALID_BIT_START] == 1'b1);
@@ -205,10 +205,10 @@ module cache_controller #(
   end
 
   wire evict_1, evict_2, evict_3, evict_4;
-  assign evict_1 = (candidate_1[VALID_BIT_START] == 1'b1 && candidate_1[DIRTY_BIT_START] == 1'b1);
-  assign evict_2 = (candidate_2[VALID_BIT_START] == 1'b1 && candidate_2[DIRTY_BIT_START] == 1'b1);
-  assign evict_3 = (candidate_3[VALID_BIT_START] == 1'b1 && candidate_3[DIRTY_BIT_START] == 1'b1);
-  assign evict_4 = (candidate_4[VALID_BIT_START] == 1'b1 && candidate_4[DIRTY_BIT_START] == 1'b1);
+  assign evict_1 = (candidate_1_reg[VALID_BIT_START] == 1'b1 && candidate_1_reg[DIRTY_BIT_START] == 1'b1);
+  assign evict_2 = (candidate_2_reg[VALID_BIT_START] == 1'b1 && candidate_2_reg[DIRTY_BIT_START] == 1'b1);
+  assign evict_3 = (candidate_3_reg[VALID_BIT_START] == 1'b1 && candidate_3_reg[DIRTY_BIT_START] == 1'b1);
+  assign evict_4 = (candidate_4_reg[VALID_BIT_START] == 1'b1 && candidate_4_reg[DIRTY_BIT_START] == 1'b1);
 
   // TODO: Implement as multiplexer instead of ternary operator
   assign mem_req_dataout = (evict_1 & miss ? candidate_1[BLOCK_DATA_WIDTH-1:0] : 
@@ -258,15 +258,15 @@ module cache_controller #(
 
   assign candidate_write[AGE_START+AGE_BITS-1:AGE_START] = 2'b00;
 
-  assign LRU_prev_age = hit_1 ? candidate_1[AGE_START + AGE_BITS - 1:AGE_START] :
-                      hit_2 ? candidate_2[AGE_START + AGE_BITS - 1:AGE_START] :
-                      hit_3 ? candidate_3[AGE_START + AGE_BITS - 1:AGE_START] :
-                      hit_4 ? candidate_4[AGE_START + AGE_BITS - 1:AGE_START] : 2'b00;
+  assign LRU_prev_age = hit_1 ? candidate_1_reg[AGE_START + AGE_BITS - 1:AGE_START] :
+                      hit_2 ? candidate_2_reg[AGE_START + AGE_BITS - 1:AGE_START] :
+                      hit_3 ? candidate_3_reg[AGE_START + AGE_BITS - 1:AGE_START] :
+                      hit_4 ? candidate_4_reg[AGE_START + AGE_BITS - 1:AGE_START] : 2'b00;
 
-  assign age_1 = hit_1 ? 2'b00 : candidate_1_age < LRU_prev_age ? candidate_1_age + 1 : candidate_1_age;
-  assign age_2 = hit_2 ? 2'b00 : candidate_2_age < LRU_prev_age ? candidate_2_age + 1 : candidate_2_age;
-  assign age_3 = hit_3 ? 2'b00 : candidate_3_age < LRU_prev_age ? candidate_3_age + 1 : candidate_3_age;
-  assign age_4 = hit_4 ? 2'b00 : candidate_4_age < LRU_prev_age ? candidate_4_age + 1 : candidate_4_age;
+  assign age_1 = hit_1 ? 2'b00 : candidate_1_reg_age < LRU_prev_age ? candidate_1_reg_age + 1 : candidate_1_reg_age;
+  assign age_2 = hit_2 ? 2'b00 : candidate_2_reg_age < LRU_prev_age ? candidate_2_reg_age + 1 : candidate_2_reg_age;
+  assign age_3 = hit_3 ? 2'b00 : candidate_3_reg_age < LRU_prev_age ? candidate_3_reg_age + 1 : candidate_3_reg_age;
+  assign age_4 = hit_4 ? 2'b00 : candidate_4_reg_age < LRU_prev_age ? candidate_4_reg_age + 1 : candidate_4_reg_age;
 
   assign candidate_write[DIRTY_BIT_START+DIRTY_BIT-1:DIRTY_BIT_START] =
       // Set dirty on WRITE (either hit or miss)
