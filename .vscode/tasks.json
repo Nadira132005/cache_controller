@@ -5,7 +5,7 @@
       "label": "Format Verilog with Verible",
       "type": "shell",
       "command": "verible-verilog-format",
-      "args": ["--inplace", "--", "${file}"],
+      "args": ["--inplace", "${file}"],
       "problemMatcher": ["$verilog-lint"],
       "group": {
         "kind": "build",

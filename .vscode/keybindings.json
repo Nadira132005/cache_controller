@@ -1,7 +1,8 @@
 [
   {
     "key": "ctrl+shift+i",
-    "command": "editor.action.formatDocument",
-    "when": "editorLangId == 'verilog'"
+    "command": "workbench.action.tasks.runTask",
+    "args": "Format Verilog with Verible",
+    "when": "editorTextFocus && editorLangId == 'verilog'"
   }
 ]
