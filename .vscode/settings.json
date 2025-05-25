@@ -1,0 +1,10 @@
+{
+  "editor.formatOnSave": true,
+  "[verilog]": {
+    "editor.defaultFormatter": "verilable.verilog-formatter",
+    "editor.formatOnSave": true
+  },
+  "verible-verilog.formatOnSave": true,
+  "verible-verilog.executable": "verible-verilog-format",
+  "verible-verilog.formatArgs": ["--inplace"]
+}
