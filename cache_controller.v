@@ -240,11 +240,14 @@ assign candidate_write[VALID_BIT_START + VALID_BIT - 1:VALID_BIT_START] = 1'b1;
               next_state = EVICT; // Need to evict before allocating
             end else if (mem_req_ready) begin
               next_state = ALLOCATE; // No eviction needed, memory ready
-            end else begin
-              next_state = CHECK_HIT; // Stay until memory ready
             end
-          end
         end
+        end
+        // If cache isn't ready, stay in CHECK_HIT
+        else begin
+          next_state = CHECK_HIT; // Stay until cache is ready
+        end
+        
       end
       
       EVICT: begin
