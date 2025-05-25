@@ -25,7 +25,7 @@ module cache_controller_tb();
     reg [BLOCK_DATA_WIDTH-1:0] candidate_3;
     reg [BLOCK_DATA_WIDTH-1:0] candidate_4;
     reg mem_req_ready;
-    reg cache_read;
+    reg cache_ready;
 
     // Outputs
     wire [WORD_SIZE-1:0] cpu_res_dataout;
@@ -44,6 +44,8 @@ module cache_controller_tb();
     wire [WORD_SIZE-1:0] cpu_addr_block_offset;
     wire [WORD_SIZE-1:0] cpu_addr_index;
     wire [WORD_SIZE-1:0] cpu_addr_tag;
+    wire cahce_rw;
+    wire cache_enable;
 
     // Instantiate the cache_controller module
     cache_controller #(
@@ -76,15 +78,13 @@ module cache_controller_tb();
         .candidate_3(candidate_3),
         .candidate_4(candidate_4),
         .bank_selector(bank_selector),
-        .bank_selector_miss(bank_selector_miss),
         .age_1(age_1),
         .age_2(age_2),
         .age_3(age_3),
         .age_4(age_4),
-        .cpu_addr_block_offset(cpu_addr_block_offset),
-        .cpu_addr_index(cpu_addr_index),
-        .cpu_addr_tag(cpu_addr_tag),
-        .cache_read(cache_read),
+        .cache_ready(cache_ready),
+        .cache_rw(cache_rw),
+        .cache_enable(cache_enable),
         .candidate_write(candidate_write)
     );
 
