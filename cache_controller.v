@@ -32,7 +32,7 @@ module cache_controller #(
 
     // Physical cache to cache controller signals
     output reg cache_enable,  // indicates that the cache should do a write/read
-    output reg cache_rw,  // r = 0, w = 1,
+    output wire cache_rw,  // r = 0, w = 1,
     input cache_ready,  // indicates that the cache has valid data at candidates
 
     input [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_1, // candidate from cache line 1
