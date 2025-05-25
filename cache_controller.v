@@ -204,22 +204,31 @@ module cache_controller #(
     if (hit_4) candidate_hit_data = candidate_4_reg[BLOCK_DATA_WIDTH-1:0];
   end
 
+
   wire evict_1, evict_2, evict_3, evict_4, evict;
   assign evict_1 = (candidate_1_reg[VALID_BIT_START] == 1'b1 && candidate_1_reg[DIRTY_BIT_START] == 1'b1);
   assign evict_2 = (candidate_2_reg[VALID_BIT_START] == 1'b1 && candidate_2_reg[DIRTY_BIT_START] == 1'b1);
   assign evict_3 = (candidate_3_reg[VALID_BIT_START] == 1'b1 && candidate_3_reg[DIRTY_BIT_START] == 1'b1);
   assign evict_4 = (candidate_4_reg[VALID_BIT_START] == 1'b1 && candidate_4_reg[DIRTY_BIT_START] == 1'b1);
 
-  // If there is a cache MISS and the LRU candidate is dirty, we need to evict it 
-  assign evict = (evict_1 | evict_2 | evict_3 | evict_4) & miss;
+  // If there is a cache MISS and the LRU candidate is dirty, we need to evict it
+  // LRU candidate is determined by bank_selector_miss which is one-hot encoded
+  assign evict = miss && (
+      (bank_selector_miss[0] && evict_1) ||
+      (bank_selector_miss[1] && evict_2) ||
+      (bank_selector_miss[2] && evict_3) ||
+      (bank_selector_miss[3] && evict_4)
+  );
 
   // Send the evicted block to main memory
-  assign mem_req_dataout = (evict_1 & miss ? candidate_1_reg[BLOCK_DATA_WIDTH-1:0] : 
-                          (evict_2 & miss ? candidate_2_reg[BLOCK_DATA_WIDTH-1:0] : 
-                          (evict_3 & miss ? candidate_3_reg[BLOCK_DATA_WIDTH-1:0] : 
-                          (evict_4 & miss ? candidate_4_reg[BLOCK_DATA_WIDTH-1:0] : 32'd0))));
+  assign mem_req_dataout = evict ? (
+      bank_selector_miss[0] ? candidate_1_reg[BLOCK_DATA_WIDTH-1:0] :
+      bank_selector_miss[1] ? candidate_2_reg[BLOCK_DATA_WIDTH-1:0] :
+      bank_selector_miss[2] ? candidate_3_reg[BLOCK_DATA_WIDTH-1:0] :
+      bank_selector_miss[3] ? candidate_4_reg[BLOCK_DATA_WIDTH-1:0] : 32'd0
+  ) : 32'd0;
 
-  assign mem_req_enable = (evict_1 | evict_2 | evict_3 | evict_4) & (current_state == EVICT);
+  assign mem_req_enable = evict & (current_state == EVICT);
   assign mem_req_rw = (evict_1 | evict_2 | evict_3 | evict_4) & (current_state == EVICT);
 
   wire [BLOCK_DATA_WIDTH-1:0] modified_mem_block;
