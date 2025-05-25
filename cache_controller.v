@@ -60,7 +60,7 @@ module cache_controller #(
   parameter SEND_TO_CACHE = 3'b100;
 
   // Registered candidates as registers
-  reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0]
+  wire [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0]
       candidate_1_reg, candidate_2_reg, candidate_3_reg, candidate_4_reg;
 
   // Register candidate data when cache_ready is active
@@ -105,7 +105,7 @@ module cache_controller #(
   );
 
 
-  reg [WORD_SIZE-1:0] cpu_req_addr_reg;
+  wire [WORD_SIZE-1:0] cpu_req_addr_reg;
   // Instantiate flipflop_d module for cpu_req_addr_reg
   flipflop_d #(
       .WIDTH(WORD_SIZE)
@@ -117,7 +117,7 @@ module cache_controller #(
       .q(cpu_req_addr_reg)
   );
 
-  reg cpu_req_rw_reg;
+  wire cpu_req_rw_reg;
   // Instantiate flipflop_d module for cpu_req_rw_reg
   flipflop_d #(
       .WIDTH(1)
@@ -128,6 +128,10 @@ module cache_controller #(
       .d(cpu_req_rw),
       .q(cpu_req_rw_reg)
   );
+
+  wire [BLOCK_OFFSET-1:0] cpu_addr_block_offset;
+  wire [SETS_BITS-1:0] cpu_addr_index;
+  wire [TAG_BITS-1:0] cpu_addr_tag;
 
   //CPU Address = tag + index + block offset + byte offset
   assign cpu_addr_block_offset = cpu_req_addr_reg[BLOCK_OFFSET-1:0];
