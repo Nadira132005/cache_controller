@@ -234,10 +234,15 @@ assign candidate_write[VALID_BIT_START + VALID_BIT - 1:VALID_BIT_START] = 1'b1;
             end else begin
               next_state = IDLE; // Read hit
             end
-          end else if (mem_req_ready) begin
-            next_state = ALLOCATE; // Miss and memory ready
           end else begin
-            next_state = CHECK_HIT; // Stay until memory is ready
+            // Miss: check if we need to evict
+            if (evict_1 | evict_2 | evict_3 | evict_4) begin
+              next_state = EVICT; // Need to evict before allocating
+            end else if (mem_req_ready) begin
+              next_state = ALLOCATE; // No eviction needed, memory ready
+            end else begin
+              next_state = CHECK_HIT; // Stay until memory ready
+            end
           end
         end
       end
