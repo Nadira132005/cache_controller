@@ -61,6 +61,16 @@ module cache_controller #(
 
   
   //CPU Address = tag + index + block offset + byte offset
+  // Note: Need to declare cpu_req_addr_reg first
+  reg [WORD_SIZE-1:0] cpu_req_addr_reg;
+  always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      cpu_req_addr_reg <= 32'd0;
+    end else begin
+      cpu_req_addr_reg <= cpu_req_addr;
+    end
+  end
+  
   assign cpu_addr_block_offset = cpu_req_addr_reg[BLOCK_OFFSET-1:0];
   assign cpu_addr_index        = cpu_req_addr_reg[BLOCK_OFFSET+SETS_BITS-1:BLOCK_OFFSET];
   assign cpu_addr_tag          = cpu_req_addr_reg[WORD_SIZE-1:BLOCK_OFFSET+SETS_BITS];
@@ -183,7 +193,7 @@ assign candidate_write[BLOCK_DATA_WIDTH-1:0] =
                     // READ: shouldn't reach this because cache_rw disables HIT READ
                   : 512'dz);
 
-assign cache_rw = cpu_rw | miss; // only write to cahce when cpu is writing or there was a cache miss 
+assign cache_rw = cpu_req_rw | miss; // only write to cache when cpu is writing or there was a cache miss 
 
 assign candidate_write[TAG_START+TAG_BITS-1:TAG_START] = hit ? 
     (hit_1 ? candidate_1_tag : 
