@@ -318,9 +318,11 @@ module cache_controller #(
       1'bz);
 
   assign candidate_write[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START] = 1'b1;
+  assign cache_rw = cpu_req_rw_reg | miss; // only write to cache when CPU is writing or there was a cache miss
 
 
   reg [3:0] current_state, next_state;
+  wire cache_rw;
 
   // State transition logic
   always @(*) begin
