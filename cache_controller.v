@@ -247,7 +247,6 @@ assign candidate_write[VALID_BIT_START + VALID_BIT - 1:VALID_BIT_START] = 1'b1;
         else begin
           next_state = CHECK_HIT; // Stay until cache is ready
         end
-        
       end
       
       EVICT: begin
