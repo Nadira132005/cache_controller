@@ -185,10 +185,10 @@ module cache_controller #(
   assign miss  = ~hit;
 
   wire [BANK-1:0] bank_selector_miss = {
-    (candidate_1[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
-    (candidate_2[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
-    (candidate_3[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
-    (candidate_4[AGE_START+AGE_BITS-1:AGE_START] == 2'b11)
+    (candidate_1_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
+    (candidate_2_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
+    (candidate_3_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
+    (candidate_4_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11)
   };
 
   // Bank selector is a one-hot encoding of the hit candidates
