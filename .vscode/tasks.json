@@ -6,7 +6,7 @@
       "type": "shell",
       "command": "verible-verilog-format",
       "args": ["--inplace", "${file}"],
-      "problemMatcher": ["$eslint-compact"],
+      "problemMatcher": ["$verilog-lint"],
       "group": {
         "kind": "build",
         "isDefault": true
