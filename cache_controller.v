@@ -184,7 +184,8 @@ module cache_controller #(
   assign hit   = hit_1 | hit_2 | hit_3 | hit_4;
   assign miss  = ~hit;
 
-  wire [BANK-1:0] bank_selector_miss = {
+  // The least recently used (LRU) candidate is the one with the highest age (one hot encoding)
+  wire [BANK-1:0] LRU_candidate = {
     (candidate_4_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
     (candidate_3_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
     (candidate_2_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
@@ -193,7 +194,7 @@ module cache_controller #(
 
   // Bank selector is a one-hot encoding of the hit candidates
   // and must be chosen by LRU policy
-  assign bank_selector = hit ? {hit_4, hit_3, hit_2, hit_1} : bank_selector_miss;
+  assign bank_selector = hit ? {hit_4, hit_3, hit_2, hit_1} : LRU_candidate;
 
   // If there is a WRITE HIT we want to know which block we will put the data in
   wire [BLOCK_DATA_WIDTH-1:0] candidate_hit_data;
@@ -212,36 +213,35 @@ module cache_controller #(
   assign evict_4 = (candidate_4_reg[VALID_BIT_START] == 1'b1 && candidate_4_reg[DIRTY_BIT_START] == 1'b1);
 
   // If there is a cache MISS and the LRU candidate is dirty, we need to evict it
-  // LRU candidate is determined by bank_selector_miss which is one-hot encoded
   assign evict = miss && (
-      (bank_selector_miss[0] && evict_1) ||
-      (bank_selector_miss[1] && evict_2) ||
-      (bank_selector_miss[2] && evict_3) ||
-      (bank_selector_miss[3] && evict_4)
+      (LRU_candidate[0] && evict_1) ||
+      (LRU_candidate[1] && evict_2) ||
+      (LRU_candidate[2] && evict_3) ||
+      (LRU_candidate[3] && evict_4)
   );
 
   // Send the evicted block to main memory
   assign mem_req_dataout = evict ? (
-      bank_selector_miss[0] ? candidate_1_reg[BLOCK_DATA_WIDTH-1:0] :
-      bank_selector_miss[1] ? candidate_2_reg[BLOCK_DATA_WIDTH-1:0] :
-      bank_selector_miss[2] ? candidate_3_reg[BLOCK_DATA_WIDTH-1:0] :
-      bank_selector_miss[3] ? candidate_4_reg[BLOCK_DATA_WIDTH-1:0] : 32'd0
-  ) : 32'd0;
+      LRU_candidate[0] ? candidate_1_reg[BLOCK_DATA_WIDTH-1:0] :
+      LRU_candidate[1] ? candidate_2_reg[BLOCK_DATA_WIDTH-1:0] :
+      LRU_candidate[2] ? candidate_3_reg[BLOCK_DATA_WIDTH-1:0] :
+      LRU_candidate[3] ? candidate_4_reg[BLOCK_DATA_WIDTH-1:0] : 32'd0
+  ) : 32'dz;
 
-  assign mem_req_enable = evict & (current_state == EVICT);
-  assign mem_req_rw = (evict_1 | evict_2 | evict_3 | evict_4) & (current_state == EVICT);
-
+  // On WRITE MISS, take the block from main memory (mem_req_dataout) and write the cpu data word at the correct block offset
+  // to prepare it for writing it to cache
   wire [BLOCK_DATA_WIDTH-1:0] modified_mem_block;
-  replacer R (
+  replacer R_WRITE_MISS (
       .data_in(mem_req_dataout),
       .block_offset(cpu_addr_block_offset),
       .data_write(cpu_req_datain),
-      .data_out(modified_cache_line),
+      .data_out(modified_mem_block),
       .enable(cache_rw & miss)  // write miss
   );
 
+  // On WRITE HIT, take the hit block and write the cpu data word at the correct block offset
   wire [BLOCK_DATA_WIDTH-1:0] modified_candidate_block;
-  replacer R (
+  replacer R_WRITE_HIT (
       .data_in(candidate_hit_data),
       .block_offset(cpu_addr_block_offset),
       .data_write(cpu_req_datain),
@@ -250,15 +250,15 @@ module cache_controller #(
   );
 
   assign candidate_write[BLOCK_DATA_WIDTH-1:0] = (miss) ?
-      // If there is a cache MISS either:
-      // WRITE: bring the block from main memory and write the cpu data word at the correct block offset
+      // If there is a cache MISS try:
+      // on WRITE: bring the block from main memory and write the cpu data word at the correct block offset
       (cache_rw ? modified_mem_block
-      // READ: just bring the block from main memory 
+      // on READ: just bring the block from main memory 
       : mem_req_dataout) :
-      // If there is a cache HIT either: 
-      // WRITE: take the hit block and write the cpu data word at the correct block offset
+      // If there is a cache HIT try: 
+      // on WRITE: take the hit block and write the cpu data word at the correct block offset
       (cache_rw ? modified_candidate_block
-      // READ: shouldn't reach this because cache_rw disables HIT READ
+      // on READ: shouldn't reach this because cache_rw disables HIT READ
       : 512'dz);
 
   assign cache_rw = cpu_req_rw_reg | miss; // only write to cache when cpu is writing or there was a cache miss 
@@ -286,7 +286,7 @@ module cache_controller #(
       cpu_req_rw ? 1'b1 :
       // If READ MISS set dirty bit to 0 because we have fresh data from memory
       (miss ? 1'b0 :
-      // If READ HIT the dirty bit should not CHANGE!
+      // If READ HIT the dirty bit SHOULD NOT CHANGE!
       1'bz);
 
   assign candidate_write[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START] = 1'b1;
@@ -296,7 +296,8 @@ module cache_controller #(
 
   // State transition logic
   always @(*) begin
-    next_state = current_state;  // Default: stay in current state
+    // Default: stay in current state if there are no conditions to change!
+    next_state = current_state;  
 
     case (current_state)
       IDLE: begin
@@ -308,52 +309,38 @@ module cache_controller #(
       CHECK_HIT: begin
         if (cache_ready) begin
           if (hit) begin
-            if (cpu_req_rw) begin
-              next_state = SEND_TO_CACHE;  // Write hit
-            end else begin
-              next_state = IDLE;  // Read hit
-            end
+            next_state = SEND_TO_CACHE;  // Cache hit, send data to CPU or write to cache
           end else begin
             // Miss: check if we need to evict
-            if (evict_1 | evict_2 | evict_3 | evict_4) begin
+            if (evict) begin
               next_state = EVICT;  // Need to evict before allocating
             end else if (mem_req_ready) begin
               next_state = ALLOCATE;  // No eviction needed, memory ready
             end
           end
-        end  // If cache isn't ready, stay in CHECK_HIT
-        else begin
-          next_state = CHECK_HIT;  // Stay until cache is ready
         end
       end
 
       EVICT: begin
         if (mem_req_ready) begin
           next_state = ALLOCATE;
-        end else begin
-          next_state = EVICT;  // Stay until memory is ready
         end
       end
 
       ALLOCATE: begin
         if (mem_req_ready) begin
           next_state = SEND_TO_CACHE;
-        end else begin
-          next_state = IDLE;  // Go back to IDLE if memory not ready
         end
       end
 
       SEND_TO_CACHE: begin
-        if (cache_ready) begin
+        if (cache_ready || cpu_res_ready) begin
           next_state = IDLE;
-        end else begin
-          next_state = SEND_TO_CACHE;
         end
       end
     endcase
   end
 
-  // Output signal generation
   always @(*) begin
     // Default assignments
     cache_enable = 1'b0;
@@ -388,14 +375,15 @@ module cache_controller #(
       end
 
       SEND_TO_CACHE: begin
-        // Write to cache
-        cache_enable = 1'b1;
-        cache_rw = cpu_req_rw;  // Use CPU's read/write signal
-
-        // On read hit, provide data to CPU
-        if (!cpu_req_rw_reg && hit) begin
-          cpu_res_ready = 1'b1;
+        if(cpu_req_addr_reg) begin
+          // Write to cache
+          cache_enable = 1'b1;
+          cache_rw = 1'b1;
+        end
+        else begin
+          // Write to CPU
           cpu_res_dataout = candidate_hit_data[cpu_addr_block_offset * WORD_SIZE + WORD_SIZE - 1 : cpu_addr_block_offset * WORD_SIZE];
+          cpu_res_ready = 1'b1;
         end
       end
     endcase
