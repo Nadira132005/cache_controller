@@ -40,12 +40,6 @@ module cache_controller #(
     input [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_3, // candidate from cache line 3
     input [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_4, // candidate from cache line 4
 
-    // Registered candidates
-    reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_1_reg,
-                                                               candidate_2_reg,
-                                                               candidate_3_reg,
-                                                               candidate_4_reg;
-
     // assign CACHE_BANKS[0][INDEX][AGE_BITS_START + AGE_BITS - 1:AGE_BITS_START] = age_1 (when cache_enable = 1)
     // assign CACHE_BANKS[1][INDEX][AGE_BITS_START + AGE_BITS - 1:AGE_BITS_START] = age_2 (when cache_enable = 1)
     // assign CACHE_BANKS[2][INDEX][AGE_BITS_START + AGE_BITS - 1:AGE_BITS_START] = age_3 (when cache_enable = 1)
@@ -65,10 +59,57 @@ module cache_controller #(
   parameter ALLOCATE = 3'b011;
   parameter SEND_TO_CACHE = 3'b100;
 
+  // Registered candidates as registers
+  reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0]
+      candidate_1_reg, candidate_2_reg, candidate_3_reg, candidate_4_reg;
+
+  // Register candidate data when cache_read is active
+  flipflop_d #(
+      .WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)
+  ) candidate_1_reg_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .load(cache_read),  // Only load when cache_read is active
+      .d(candidate_1),
+      .q(candidate_1_reg)
+  );
+
+  flipflop_d #(
+      .WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)
+  ) candidate_2_reg_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .load(cache_read),
+      .d(candidate_2),
+      .q(candidate_2_reg)
+  );
+
+  flipflop_d #(
+      .WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)
+  ) candidate_3_reg_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .load(cache_read),
+      .d(candidate_3),
+      .q(candidate_3_reg)
+  );
+
+  flipflop_d #(
+      .WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)
+  ) candidate_4_reg_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .load(cache_read),
+      .d(candidate_4),
+      .q(candidate_4_reg)
+  );
+
 
   reg [WORD_SIZE-1:0] cpu_req_addr_reg;
   // Instantiate flipflop_d module for cpu_req_addr_reg
-  flipflop_d #(.WIDTH(WORD_SIZE)) cpu_req_addr_reg_inst (
+  flipflop_d #(
+      .WIDTH(WORD_SIZE)
+  ) cpu_req_addr_reg_inst (
       .clk(clk),
       .rst_n(rst_n),
       .load(cpu_req_enable),
@@ -78,7 +119,9 @@ module cache_controller #(
 
   reg cpu_req_rw_reg;
   // Instantiate flipflop_d module for cpu_req_rw_reg
-  flipflop_d #(.WIDTH(1)) cpu_req_rw_reg_inst (
+  flipflop_d #(
+      .WIDTH(1)
+  ) cpu_req_rw_reg_inst (
       .clk(clk),
       .rst_n(rst_n),
       .load(cpu_req_enable),
@@ -150,7 +193,7 @@ module cache_controller #(
 
   // Bank selector is a one-hot encoding of the hit candidates
   // and must be chosen by LRU policy
-  assign bank_selector = hit ? {hit_1, hit_2, hit_3, hit_4} : bank_selector_miss;
+  assign bank_selector = hit ? {hit_4, hit_3, hit_2, hit_1} : bank_selector_miss;
 
   // If there is a WRITE HIT we want to know which block we will put the data in
   wire [BLOCK_DATA_WIDTH-1:0] candidate_hit_data;
@@ -352,38 +395,4 @@ module cache_controller #(
       current_state <= next_state;
     end
   end
-
-  // Register candidate data when cache_read is active
-  flipflop_d #(.WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)) candidate_1_reg_inst (
-      .clk(clk),
-      .rst_n(rst_n),
-      .load(cache_read),  // Only load when cache_read is active
-      .d(candidate_1),
-      .q(candidate_1_reg)
-  );
-
-  flipflop_d #(.WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)) candidate_2_reg_inst (
-      .clk(clk),
-      .rst_n(rst_n),
-      .load(cache_read),
-      .d(candidate_2),
-      .q(candidate_2_reg)
-  );
-
-  flipflop_d #(.WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)) candidate_3_reg_inst (
-      .clk(clk),
-      .rst_n(rst_n),
-      .load(cache_read),
-      .d(candidate_3),
-      .q(candidate_3_reg)
-  );
-
-  flipflop_d #(.WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)) candidate_4_reg_inst (
-      .clk(clk),
-      .rst_n(rst_n),
-      .load(cache_read),
-      .d(candidate_4),
-      .q(candidate_4_reg)
-  );
-
 endmodule
