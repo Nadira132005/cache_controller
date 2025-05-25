@@ -185,10 +185,10 @@ module cache_controller #(
   assign miss  = ~hit;
 
   wire [BANK-1:0] bank_selector_miss = {
-    (candidate_1_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
-    (candidate_2_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
+    (candidate_4_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
     (candidate_3_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
-    (candidate_4_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11)
+    (candidate_2_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
+    (candidate_1_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11)
   };
 
   // Bank selector is a one-hot encoding of the hit candidates
@@ -204,17 +204,20 @@ module cache_controller #(
     if (hit_4) candidate_hit_data = candidate_4_reg[BLOCK_DATA_WIDTH-1:0];
   end
 
-  wire evict_1, evict_2, evict_3, evict_4;
+  wire evict_1, evict_2, evict_3, evict_4, evict;
   assign evict_1 = (candidate_1_reg[VALID_BIT_START] == 1'b1 && candidate_1_reg[DIRTY_BIT_START] == 1'b1);
   assign evict_2 = (candidate_2_reg[VALID_BIT_START] == 1'b1 && candidate_2_reg[DIRTY_BIT_START] == 1'b1);
   assign evict_3 = (candidate_3_reg[VALID_BIT_START] == 1'b1 && candidate_3_reg[DIRTY_BIT_START] == 1'b1);
   assign evict_4 = (candidate_4_reg[VALID_BIT_START] == 1'b1 && candidate_4_reg[DIRTY_BIT_START] == 1'b1);
 
-  // TODO: Implement as multiplexer instead of ternary operator
-  assign mem_req_dataout = (evict_1 & miss ? candidate_1[BLOCK_DATA_WIDTH-1:0] : 
-                          (evict_2 & miss ? candidate_2[BLOCK_DATA_WIDTH-1:0] : 
-                          (evict_3 & miss ? candidate_3[BLOCK_DATA_WIDTH-1:0] : 
-                          (evict_4 & miss ? candidate_4[BLOCK_DATA_WIDTH-1:0] : 32'd0))));
+  // If there is a cache MISS and the LRU candidate is dirty, we need to evict it 
+  assign evict = (evict_1 | evict_2 | evict_3 | evict_4) & miss;
+
+  // Send the evicted block to main memory
+  assign mem_req_dataout = (evict_1 & miss ? candidate_1_reg[BLOCK_DATA_WIDTH-1:0] : 
+                          (evict_2 & miss ? candidate_2_reg[BLOCK_DATA_WIDTH-1:0] : 
+                          (evict_3 & miss ? candidate_3_reg[BLOCK_DATA_WIDTH-1:0] : 
+                          (evict_4 & miss ? candidate_4_reg[BLOCK_DATA_WIDTH-1:0] : 32'd0))));
 
   assign mem_req_enable = (evict_1 | evict_2 | evict_3 | evict_4) & (current_state == EVICT);
   assign mem_req_rw = (evict_1 | evict_2 | evict_3 | evict_4) & (current_state == EVICT);
@@ -257,6 +260,7 @@ module cache_controller #(
      (hit_3 ? candidate_3_tag : candidate_4_tag))) : cpu_addr_tag; // write the tag of the hit candidate or the current cpu address tag
 
   assign candidate_write[AGE_START+AGE_BITS-1:AGE_START] = 2'b00;
+
 
   assign LRU_prev_age = hit_1 ? candidate_1_age :
                       hit_2 ? candidate_2_age :
