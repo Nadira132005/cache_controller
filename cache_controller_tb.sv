@@ -201,7 +201,6 @@ module cache_controller_tb ();
     $display("\nTest Case 1: Read hit in candidate 1");
     provide_candidates(12'hABC, test_block_data, 2'b00, 2'b01, 2'b10, 2'b11, 1'b1, 1'b1, 1'b1, 1'b1,
                        1'b1, 1'b1, 1'b1, 1'b1);
-    #10;
     cpu_read(32'h0000_0ABC);  // This should hit in candidate 1             
     wait_for_cache_access();
     #20;
@@ -265,8 +264,20 @@ module cache_controller_tb ();
   // Monitor signals                                                          
   initial begin
     $monitor(
-        "Time: %0t | State: %b | cache_enable: %b | mem_req_enable: %b | bank_selector: %b | hit: %b | miss: %b",
-        $time, uut.current_state, cache_enable, mem_req_enable, bank_selector, uut.hit, uut.miss);
+        "Time: %0t | State: %s | cache_enable: %b | mem_req_enable: %b | bank_selector: %b | hit: %b | miss: %b",
+        $time, state_to_string(uut.current_state), cache_enable, mem_req_enable, bank_selector,
+        uut.hit, uut.miss);
   end
+
+  function string state_to_string(input [3:0] state);
+    case (state)
+      uut.IDLE:          return "IDLE";
+      uut.CHECK_HIT:     return "CHECK_HIT";
+      uut.EVICT:         return "EVICT";
+      uut.ALLOCATE:      return "ALLOCATE";
+      uut.SEND_TO_CACHE: return "SEND_TO_CACHE";
+      default:           return "UNKNOWN";
+    endcase
+  endfunction
 
 endmodule
