@@ -258,15 +258,15 @@ module cache_controller #(
 
   assign candidate_write[AGE_START+AGE_BITS-1:AGE_START] = 2'b00;
 
-  assign LRU_prev_age = hit_1 ? candidate_1_reg[AGE_START + AGE_BITS - 1:AGE_START] :
-                      hit_2 ? candidate_2_reg[AGE_START + AGE_BITS - 1:AGE_START] :
-                      hit_3 ? candidate_3_reg[AGE_START + AGE_BITS - 1:AGE_START] :
-                      hit_4 ? candidate_4_reg[AGE_START + AGE_BITS - 1:AGE_START] : 2'b00;
+  assign LRU_prev_age = hit_1 ? candidate_1_age :
+                      hit_2 ? candidate_2_age :
+                      hit_3 ? candidate_3_age :
+                      hit_4 ? candidate_4_age : 2'b00;
 
-  assign age_1 = hit_1 ? 2'b00 : candidate_1_reg_age < LRU_prev_age ? candidate_1_reg_age + 1 : candidate_1_reg_age;
-  assign age_2 = hit_2 ? 2'b00 : candidate_2_reg_age < LRU_prev_age ? candidate_2_reg_age + 1 : candidate_2_reg_age;
-  assign age_3 = hit_3 ? 2'b00 : candidate_3_reg_age < LRU_prev_age ? candidate_3_reg_age + 1 : candidate_3_reg_age;
-  assign age_4 = hit_4 ? 2'b00 : candidate_4_reg_age < LRU_prev_age ? candidate_4_reg_age + 1 : candidate_4_reg_age;
+  assign age_1 = hit_1 ? 2'b00 : candidate_1_age < LRU_prev_age ? candidate_1_age + 1 : candidate_1_age;
+  assign age_2 = hit_2 ? 2'b00 : candidate_2_age < LRU_prev_age ? candidate_2_age + 1 : candidate_2_age;
+  assign age_3 = hit_3 ? 2'b00 : candidate_3_age < LRU_prev_age ? candidate_3_age + 1 : candidate_3_age;
+  assign age_4 = hit_4 ? 2'b00 : candidate_4_age < LRU_prev_age ? candidate_4_age + 1 : candidate_4_age;
 
   assign candidate_write[DIRTY_BIT_START+DIRTY_BIT-1:DIRTY_BIT_START] =
       // Set dirty on WRITE (either hit or miss)
