@@ -2,6 +2,12 @@
 
 module cache_controller_tb ();
 
+  parameter IDLE = 3'b000;
+  parameter CHECK_HIT = 3'b001;
+  parameter EVICT = 3'b010;
+  parameter ALLOCATE = 3'b011;
+  parameter SEND_TO_CACHE = 3'b100;
+
   // Parameters                                                               
   parameter WORD_SIZE = 32;
   parameter BLOCK_OFFSET = 4;
@@ -102,7 +108,7 @@ module cache_controller_tb ();
   // Initialize test block data with distinct patterns for easier verification
   initial begin
     for (integer i = 0; i < 16; i++) begin
-      test_block_data[i*32+:32] = 32'hDEADBEEF + i;
+      test_block_data[i*32+:32] = 32'hDEAD_BEEF + i;
     end
   end
 
@@ -139,7 +145,9 @@ module cache_controller_tb ();
     candidate_1 = {valid1, dirty1, age1, tag, block_data};
     candidate_2 = {valid2, dirty2, age2, tag, block_data};
     candidate_3 = {valid3, dirty3, age3, tag, block_data};
-    candidate_4 = {valid4, dirty4, age4, age4, tag, block_data};  // Note: age4 is repeated intentionally                                                  
+    candidate_4 = {
+      valid4, dirty4, age4, age4, tag, block_data
+    };  // Note: age4 is repeated intentionally                                                  
 
     // Wait for cache to be accessed                                        
     if (cache_ready) begin
@@ -163,9 +171,8 @@ module cache_controller_tb ();
 
   // Task to wait for cache access to complete                                
   task wait_for_cache_access();
-    wait (cache_enable == 0);
+    wait (cache_ready == 1);
     $display("Cache access completed at time %0t", $time);
-    cache_ready = 1;  // Indicate cache has valid data
     @(posedge clk);
     cache_ready = 0;
   endtask
@@ -195,7 +202,6 @@ module cache_controller_tb ();
     provide_candidates(12'hABC, test_block_data, 2'b00, 2'b01, 2'b10, 2'b11, 1'b1, 1'b1, 1'b1, 1'b1,
                        1'b1, 1'b1, 1'b1, 1'b1);
     #10;
-    cache_ready = 1;
     cpu_read(32'h0000_0ABC);  // This should hit in candidate 1             
     wait_for_cache_access();
     #20;
@@ -244,7 +250,7 @@ module cache_controller_tb ();
     // Test case 5: Read hit after write                                    
     $display("\nTest Case 5: Read hit after write");
     provide_candidates(12'h00B, candidate_write[BLOCK_DATA_WIDTH-1:0], 2'b11, 2'b10, 2'b01, 2'b00,
-                       1'b1, 1'b1, 1'b1, 1'b1);
+                       1'b0, 1'b0, 1'b1, 1'b1, 1'b0, 1'b0, 1'b0, 1'b0);
     #10;
     cache_ready = 1;
     cpu_read(32'h0000_0ABC);  // This should hit in candidate 4             
