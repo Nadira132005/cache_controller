@@ -17,7 +17,7 @@ module cache_controller #(
     input [WORD_SIZE-1:0] cpu_req_addr,  // 1 word address
     input [WORD_SIZE-1:0] cpu_req_datain,  // 1 word data input to write
     output [WORD_SIZE-1:0] cpu_res_dataout,  // 1 word response data output to cpu
-    output cpu_res_ready,
+    output reg cpu_res_ready,
     input cpu_req_rw,  // r = 0, w = 1
     input cpu_req_enable,
 

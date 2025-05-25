@@ -1,5 +1,5 @@
 module replacer #(
-    parameter WORD_SIZE  = 32,  // Size of each word
+    parameter WORD_SIZE = 32,  // Size of each word
     parameter BLOCK_SIZE = 512,  // Total block size,
     parameter NUM_SEGMENTS = 16,  // Number of segments to write
     parameter NUM_SEGMENTS_LOG = 4  // Log2 of NUM_SEGMENTS
