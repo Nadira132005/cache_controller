@@ -1,13 +1,6 @@
 `timescale 1ns / 1ps
 
 module cache_controller_tb ();
-
-  parameter IDLE = 3'b000;
-  parameter CHECK_HIT = 3'b001;
-  parameter EVICT = 3'b010;
-  parameter ALLOCATE = 3'b011;
-  parameter SEND_TO_CACHE = 3'b100;
-
   // Parameters                                                               
   parameter WORD_SIZE = 32;
   parameter BLOCK_OFFSET = 4;
@@ -261,10 +254,7 @@ module cache_controller_tb ();
     $finish;
   end
 
-  reg  [ 3:0] current_state;
-  wire [15:0] current_state_name;
-  assign current_state_name = current_state;
-
+  string current_state_name = state_to_string(uut.current_state);
   // Monitor signals                                                          
   initial begin
     $monitor(
@@ -272,7 +262,7 @@ module cache_controller_tb ();
         $time, current_state_name, cache_enable, mem_req_enable, bank_selector, uut.hit, uut.miss);
   end
 
-  function string state_to_string(input [3:0] state);
+  function string state_to_string(input [2:0] state);
     case (state)
       uut.IDLE:          return "IDLE";
       uut.CHECK_HIT:     return "CHECK_HIT";
@@ -282,9 +272,5 @@ module cache_controller_tb ();
       default:           return "UNKNOWN";
     endcase
   endfunction
-
-  // State name mapping for monitoring
-  wire [15:0] current_state_name;
-  assign current_state_name = state_to_string(uut.current_state);
 
 endmodule
