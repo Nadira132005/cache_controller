@@ -40,6 +40,12 @@ module cache_controller #(
     input [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_3, // candidate from cache line 3
     input [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_4, // candidate from cache line 4
 
+    // Registered candidates
+    reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_1_reg,
+                                                               candidate_2_reg,
+                                                               candidate_3_reg,
+                                                               candidate_4_reg;
+
     // assign CACHE_BANKS[0][INDEX][AGE_BITS_START + AGE_BITS - 1:AGE_BITS_START] = age_1 (when cache_enable = 1)
     // assign CACHE_BANKS[1][INDEX][AGE_BITS_START + AGE_BITS - 1:AGE_BITS_START] = age_2 (when cache_enable = 1)
     // assign CACHE_BANKS[2][INDEX][AGE_BITS_START + AGE_BITS - 1:AGE_BITS_START] = age_3 (when cache_enable = 1)
@@ -146,13 +152,13 @@ module cache_controller #(
   // and must be chosen by LRU policy
   assign bank_selector = hit ? {hit_1, hit_2, hit_3, hit_4} : bank_selector_miss;
 
-  // If there is a WRITE HIT we want to know which block we will put the data in
+  // Register candidates when cache_read is set
   wire [BLOCK_DATA_WIDTH-1:0] candidate_hit_data;
   always @(*) begin
-    if (hit_1) candidate_hit_data = candidate_1[BLOCK_DATA_WIDTH-1:0];
-    if (hit_2) candidate_hit_data = candidate_2[BLOCK_DATA_WIDTH-1:0];
-    if (hit_3) candidate_hit_data = candidate_3[BLOCK_DATA_WIDTH-1:0];
-    if (hit_4) candidate_hit_data = candidate_4[BLOCK_DATA_WIDTH-1:0];
+    if (hit_1) candidate_hit_data = candidate_1_reg[BLOCK_DATA_WIDTH-1:0];
+    if (hit_2) candidate_hit_data = candidate_2_reg[BLOCK_DATA_WIDTH-1:0];
+    if (hit_3) candidate_hit_data = candidate_3_reg[BLOCK_DATA_WIDTH-1:0];
+    if (hit_4) candidate_hit_data = candidate_4_reg[BLOCK_DATA_WIDTH-1:0];
   end
 
   wire evict_1, evict_2, evict_3, evict_4;
