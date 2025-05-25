@@ -1,7 +1,7 @@
 {
   "editor.formatOnSave": true,
   "[verilog]": {
-    "editor.defaultFormatter": "verilable.verilog-formatter",
+    "editor.defaultFormatter": "mshr-h.veriloghdl",
     "editor.formatOnSave": true
   },
   "verible-verilog.formatOnSave": true,
