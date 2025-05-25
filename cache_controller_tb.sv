@@ -254,14 +254,6 @@ module cache_controller_tb ();
     $finish;
   end
 
-  string current_state_name = state_to_string(uut.current_state);
-  // Monitor signals                                                          
-  initial begin
-    $monitor(
-        "Time: %0t | State: %s | cache_enable: %b | mem_req_enable: %b | bank_selector: %b | hit: %b | miss: %b",
-        $time, current_state_name, cache_enable, mem_req_enable, bank_selector, uut.hit, uut.miss);
-  end
-
   function string state_to_string(input [2:0] state);
     case (state)
       uut.IDLE:          return "IDLE";
@@ -272,5 +264,12 @@ module cache_controller_tb ();
       default:           return "UNKNOWN";
     endcase
   endfunction
+
+  initial begin
+    $monitor(
+        "Time: %0t | State: %s | cache_enable: %b | mem_req_enable: %b | bank_selector: %b | hit: %b | miss: %b",
+        $time, state_to_string(uut.current_state), cache_enable, mem_req_enable, bank_selector,
+        uut.hit, uut.miss);
+  end
 
 endmodule
