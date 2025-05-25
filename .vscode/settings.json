@@ -1,10 +1,10 @@
 {
   "editor.formatOnSave": true,
   "[verilog]": {
-    "editor.defaultFormatter": "mshr-h.veriloghdl",
+    "editor.defaultFormatter": "vscode.verible-verilog",
     "editor.formatOnSave": true
   },
-  "verible-verilog.formatOnSave": true,
-  "verible-verilog.executable": "verible-verilog-format",
-  "verible-verilog.formatArgs": ["--inplace"]
+  "verible-verilog.format.enabled": true,
+  "verible-verilog.format.executable": "verible-verilog-format",
+  "verible-verilog.format.args": ["--inplace", "--print_changes"]
 }
