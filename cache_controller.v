@@ -214,105 +214,117 @@ assign candidate_write[VALID_BIT_START + VALID_BIT - 1:VALID_BIT_START] = 1'b1;
 
 
   reg [2:0] current_state, next_state;
-    always @(*) begin
-        cache_enable = 1'b0;
-        cache_rw = 1'b0;
-        mem_req_enable = 1'b0;
-        mem_req_rw = 1'b0;
-        mem_req_addr = 32'd0;
-        mem_req_datain = 512'd0;
-        cpu_res_dataout = 32'd0;
-        cpu_res_ready = 1'b0;
-            
-        if(current_state == IDLE) begin
-            cache_rw = 0; // always read from cache in IDLE state
-            if(cpu_req_enable) begin
-                next_state = CHECK_HIT; // move to CHECK_HIT state
-                cache_enable = 1'b1; // enable cache when CPU requests
-            end else begin
-                cache_enable = 1'b0; // disable cache when no CPU request
-            end 
-        end else if(current_state == CHECK_HIT) begin
-            if(cache_ready) begin
-                if(evict) begin
-                    next_state = EVICT; // if dirty, go to EVICT state
-                end else begin
-                    if(hit) begin
-                        next_state = IDLE;
-                        cpu_res_ready = 1'b1; // signal that CPU can read the data
-                        cpu_res_dataout = candidate_hit_data[cpu_addr_block_offset * WORD_SIZE + WORD_SIZE - 1 : cpu_addr_block_offset * WORD_SIZE]; // output the data to CPU
-                    end else begin
-                        next_state = ALLOCATE; // if miss, go to ALLOCATE state
-                    end
-                end
-            end
-            else next_state = CHECK_HIT; // remain here if not ready
-        end 
-        else if(current_state == ALLOCATE) begin
-            if(mem_req_ready) begin
-                cache_enable = 1'b1;
-                cache_rw = 1'b1; // write to cache if memory is ready
-            end else begin
-                cache_enable = 1'b0;
-                cache_rw = 1'b0;
-            end
-        end else if(current_state == SEND_TO_CACHE) begin
-            // The CPU want to WRITE to cache
-            if(cpu_req_rw) begin 
-                cache_enable <= 1'b1;
-                cache_rw <= 1'b1;
-            end 
+  
+  // State transition logic
+  always @(*) begin
+    next_state = current_state; // Default: stay in current state
+    
+    case(current_state)
+      IDLE: begin
+        if (cpu_req_enable) begin
+          next_state = CHECK_HIT;
         end
-    end   
+      end
+      
+      CHECK_HIT: begin
+        if (cache_ready) begin
+          if (hit) begin
+            if (cpu_req_rw) begin
+              next_state = SEND_TO_CACHE; // Write hit
+            end else begin
+              next_state = IDLE; // Read hit
+            end
+          end else if (mem_req_ready) begin
+            next_state = ALLOCATE; // Miss and memory ready
+          end else begin
+            next_state = CHECK_HIT; // Stay until memory is ready
+          end
+        end
+      end
+      
+      EVICT: begin
+        if (mem_req_ready) begin
+          next_state = ALLOCATE;
+        end else begin
+          next_state = EVICT; // Stay until memory is ready
+        end
+      end
+      
+      ALLOCATE: begin
+        if (mem_req_ready) begin
+          next_state = SEND_TO_CACHE;
+        end else begin
+          next_state = IDLE; // Go back to IDLE if memory not ready
+        end
+      end
+      
+      SEND_TO_CACHE: begin
+        if (cache_ready) begin
+          next_state = IDLE;
+        end else begin
+          next_state = SEND_TO_CACHE; // Stay until cache is ready
+        end
+      end
+    endcase
+  end
 
-    always @(*) begin
-        next_state = current_state; // default next state is the current state
-        case(current_state)
-            IDLE: begin
-                if(cpu_req_enable) begin
-                    next_state = CHECK_HIT;
-                end
-            end
-            CHECK_HIT: begin
-                if(cache_ready) begin
-                    if(!dirty) begin
-                        if(valid) begin
-                            next_state = SEND_TO_CACHE; // hit
-                        end else begin
-                            next_state = ALLOCATE; // miss, but no eviction needed
-                        end
-                    end else begin
-                        // here dirty = 1, so we need to evict
-                        next_state = EVICT;
-                    end
-                end
-            end
-            EVICT: begin
-                mem_req_addr = {cpu_addr_tag, cpu_addr_index, {BLOCK_OFFSET{1'b0}}}; // align to block size 
-                mem_req_datain = candidate_hit_data; // data to be written back to memory
-                mem_req_enable = 1'b1; // enable memory request
-                mem_req_rw = 1'b1; // write back to memory 
-
-                if(mem_req_ready) begin
-                    next_state = ALLOCATE;
-                end
-            end
-            ALLOCATE: begin
-                if(mem_req_ready) begin
-                    next_state = SEND_TO_CACHE;
-                end else begin
-                    next_state = IDLE; // go back to IDLE if memory is not ready for allocation
-                end
-            end
-            SEND_TO_CACHE: begin
-                if(cache_ready) begin
-                    next_state = IDLE; // go back to IDLE after sending data to cache
-                end else begin
-                    next_state = SEND_TO_CACHE; // stay in SEND_TO_CACHE until cache is ready
-                end
-            end
-        endcase
-    end
+  // Output signal generation
+  always @(*) begin
+    // Default assignments
+    cache_enable = 1'b0;
+    cache_rw = 1'b0;
+    mem_req_enable = 1'b0;
+    mem_req_rw = 1'b0;
+    mem_req_addr = 32'd0;
+    mem_req_datain = 512'd0;
+    cpu_res_dataout = 32'd0;
+    cpu_res_ready = 1'b0;
+    
+    case(current_state)
+      IDLE: begin
+        cache_rw = 1'b0; // Always read from cache in IDLE state
+        if (cpu_req_enable) begin
+          cache_enable = 1'b1; // Enable cache when CPU requests
+        end
+      end
+      
+      CHECK_HIT: begin
+        if (cache_ready) begin
+          if (!hit) begin
+            // On miss, initiate memory read
+            mem_req_enable = 1'b1;
+            mem_req_rw = 1'b0; // Read from memory
+          end
+        end
+      end
+      
+      EVICT: begin
+        // Write back to memory
+        mem_req_enable = 1'b1;
+        mem_req_rw = 1'b1; // Write to memory
+        mem_req_addr = {cpu_addr_tag, cpu_addr_index, {BLOCK_OFFSET{1'b0}}}; // Align to block size
+        mem_req_datain = candidate_hit_data; // Data to be written back to memory
+      end
+      
+      ALLOCATE: begin
+        // Read from memory on allocate
+        mem_req_enable = 1'b1;
+        mem_req_rw = 1'b0;
+      end
+      
+      SEND_TO_CACHE: begin
+        // Write to cache
+        cache_enable = 1'b1;
+        cache_rw = cpu_req_rw; // Use CPU's read/write signal
+        
+        // On read hit, provide data to CPU
+        if (!cpu_req_rw && hit) begin
+          cpu_res_ready = 1'b1;
+          cpu_res_dataout = candidate_hit_data[cpu_addr_block_offset * WORD_SIZE + WORD_SIZE - 1 : cpu_addr_block_offset * WORD_SIZE];
+        end
+      end
+    endcase
+  end
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
