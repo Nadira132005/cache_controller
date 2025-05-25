@@ -2,5 +2,6 @@
   "key": "ctrl+shift+i",
   "command": "workbench.action.tasks.runTask",
   "args": "Format Verilog with Verible",
-  "when": "editorTextFocus && editorLangId == 'verilog'"
+  "when": "editorTextFocus && editorLangId == 'verilog'",
+  "commandTitle": "Format Verilog with Verible"
 }
