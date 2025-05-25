@@ -61,15 +61,14 @@ module cache_controller #(
 
 
   //CPU Address = tag + index + block offset + byte offset
-  // Note: Need to declare cpu_req_addr_reg first
-  reg [WORD_SIZE-1:0] cpu_req_addr_reg;
-  always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      cpu_req_addr_reg <= 32'd0;
-    end else begin
-      cpu_req_addr_reg <= cpu_req_addr;
-    end
-  end
+  // Instantiate flipflop_d module for cpu_req_addr_reg
+  flipflop_d #(.WIDTH(WORD_SIZE)) cpu_req_addr_reg_inst (
+      .clk(clk),
+      .rst_n(rst_n),
+      .load(cpu_req_enable),
+      .d(cpu_req_addr),
+      .q(cpu_req_addr_reg)
+  );
 
   assign cpu_addr_block_offset = cpu_req_addr_reg[BLOCK_OFFSET-1:0];
   assign cpu_addr_index        = cpu_req_addr_reg[BLOCK_OFFSET+SETS_BITS-1:BLOCK_OFFSET];
