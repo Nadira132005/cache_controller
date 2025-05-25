@@ -22,17 +22,17 @@ module cache_controller #(
     input cpu_req_enable,
 
     // Cache controller to main memory signals
-    input [WORD_SIZE-1:0] mem_req_addr, // BLOCK_OFFSET bits should be always 0 to align to 16 bytes
-    input [BLOCK_DATA_WIDTH-1:0] mem_req_datain, // the 64 byte block extracted from main memory (on read miss)
+    output reg [WORD_SIZE-1:0] mem_req_addr, // BLOCK_OFFSET bits should be always 0 to align to 16 bytes
     output [BLOCK_DATA_WIDTH-1:0] mem_req_dataout, // the 64 byte block to be written to main memory (on write back)
-    output mem_req_rw,  // r = 0, w = 1
-    output mem_req_enable,  // when reading/writing to main memory do not forget to activate
+    input [BLOCK_DATA_WIDTH-1:0] mem_req_datain, // the 64 byte block extracted from main memory (on read miss)
+    output reg mem_req_rw,  // r = 0, w = 1
+    output reg mem_req_enable,  // when reading/writing to main memory do not forget to activate
 
     input mem_req_ready,  // main memory has valid data at mem_req_dataout
 
     // Physical cache to cache controller signals
     output reg cache_enable,  // indicates that the cache should do a write/read
-    output wire cache_rw,  // r = 0, w = 1,
+    output reg cache_rw,  // r = 0, w = 1,
     input cache_ready,  // indicates that the cache has valid data at candidates
 
     input [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_1, // candidate from cache line 1
@@ -202,7 +202,7 @@ module cache_controller #(
   assign bank_selector = hit ? {hit_4, hit_3, hit_2, hit_1} : LRU_candidate;
 
   // If there is a WRITE HIT we want to know which block we will put the data in
-  wire [BLOCK_DATA_WIDTH-1:0] candidate_hit_data;
+  reg [BLOCK_DATA_WIDTH-1:0] candidate_hit_data;
   always @(*) begin
     if (hit_1) candidate_hit_data = candidate_1_reg[BLOCK_DATA_WIDTH-1:0];
     if (hit_2) candidate_hit_data = candidate_2_reg[BLOCK_DATA_WIDTH-1:0];
@@ -265,7 +265,6 @@ module cache_controller #(
       // on READ: shouldn't reach this because cache_rw disables HIT READ
       : 512'dz);
 
-  assign cache_rw = cpu_req_rw_reg | miss; // only write to cache when cpu is writing or there was a cache miss 
 
   // write the tag of the hit candidate or the current cpu address tag
   assign candidate_write[TAG_START+TAG_BITS-1:TAG_START] = 
@@ -318,8 +317,7 @@ module cache_controller #(
       1'bz);
 
   assign candidate_write[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START] = 1'b1;
-  assign cache_rw = cpu_req_rw_reg | miss; // only write to cache when CPU is writing or there was a cache miss
-
+  assign cpu_res_dataout = candidate_hit_data[cpu_addr_block_offset * WORD_SIZE + WORD_SIZE - 1 : cpu_addr_block_offset * WORD_SIZE];
 
   reg [3:0] current_state, next_state;
 
@@ -373,13 +371,6 @@ module cache_controller #(
   always @(*) begin
     // Default assignments
     cache_enable = 1'b0;
-    cache_rw = 1'b0;
-    mem_req_enable = 1'b0;
-    mem_req_rw = 1'b0;
-    mem_req_addr = 32'd0;
-    mem_req_datain = 512'd0;
-    cpu_res_dataout = 32'd0;
-    cpu_res_ready = 1'b0;
 
     case (current_state)
       IDLE: begin
@@ -394,7 +385,6 @@ module cache_controller #(
         mem_req_enable = 1'b1;
         mem_req_rw = 1'b1;  // Write to memory
         mem_req_addr = {cpu_addr_tag, cpu_addr_index, {BLOCK_OFFSET{1'b0}}};  // Align to block size
-        mem_req_datain = candidate_hit_data;  // Data to be written back to memory
       end
 
       ALLOCATE: begin
@@ -410,7 +400,6 @@ module cache_controller #(
           cache_rw = 1'b1;
         end else begin
           // Write to CPU
-          cpu_res_dataout = candidate_hit_data[cpu_addr_block_offset * WORD_SIZE + WORD_SIZE - 1 : cpu_addr_block_offset * WORD_SIZE];
           cpu_res_ready = 1'b1;
         end
       end
