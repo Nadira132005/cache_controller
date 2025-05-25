@@ -19,7 +19,6 @@ module cache_controller #(
     output [WORD_SIZE-1:0] cpu_res_dataout,  // 1 word response data output to cpu
     output cpu_res_ready,
     input cpu_req_rw,  // r = 0, w = 1
-    output cpu_req_rw_reg,  // registered version of cpu_req_rw
     input cpu_req_enable,
 
     // Cache controller to main memory signals
@@ -61,6 +60,7 @@ module cache_controller #(
   parameter SEND_TO_CACHE = 3'b100;
 
 
+  reg [WORD_SIZE-1:0] cpu_req_addr_reg;
   // Instantiate flipflop_d module for cpu_req_addr_reg
   flipflop_d #(.WIDTH(WORD_SIZE)) cpu_req_addr_reg_inst (
       .clk(clk),
@@ -70,6 +70,7 @@ module cache_controller #(
       .q(cpu_req_addr_reg)
   );
 
+  reg cpu_req_rw_reg;
   // Instantiate flipflop_d module for cpu_req_rw_reg
   flipflop_d #(.WIDTH(1)) cpu_req_rw_reg_inst (
       .clk(clk),
@@ -134,7 +135,6 @@ module cache_controller #(
   assign hit   = hit_1 | hit_2 | hit_3 | hit_4;
   assign miss  = ~hit;
 
-  // Implement LRU policy
   wire [BANK-1:0] bank_selector_miss = {
     (candidate_1[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
     (candidate_2[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
@@ -143,7 +143,7 @@ module cache_controller #(
   };
 
   // Bank selector is a one-hot encoding of the hit candidates
-  // and must be chosen by LRU policy (TODO)
+  // and must be chosen by LRU policy
   assign bank_selector = hit ? {hit_1, hit_2, hit_3, hit_4} : bank_selector_miss;
 
   // If there is a WRITE HIT we want to know which block we will put the data in
@@ -230,7 +230,7 @@ module cache_controller #(
   assign candidate_write[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START] = 1'b1;
 
 
-  reg [2:0] current_state, next_state;
+  reg [3:0] current_state, next_state;
 
   // State transition logic
   always @(*) begin
@@ -285,7 +285,7 @@ module cache_controller #(
         if (cache_ready) begin
           next_state = IDLE;
         end else begin
-          next_state = SEND_TO_CACHE;  // Stay until cache is ready
+          next_state = SEND_TO_CACHE;
         end
       end
     endcase
