@@ -3,5 +3,8 @@
   "verible-verilog-format.enable": true,
   "verible-verilog-format.executable": "verible-verilog-format",
   "verible-verilog-format.formatArgs": ["--inplace", "--print_changes"],
-  "editor.formatOnSaveTimeout": 5000
+  "editor.formatOnSaveTimeout": 5000,
+  "[verilog]": {
+    "editor.defaultFormatter": "chipsalliance.verible-vscode"
+  }
 }
