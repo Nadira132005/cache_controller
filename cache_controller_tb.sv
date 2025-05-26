@@ -144,16 +144,15 @@ module cache_controller_tb ();
   endtask
 
   // Task to provide cache candidates with specific data                      
-  task provide_candidates(input [TAG_BITS-1:0] tag, input [BLOCK_DATA_WIDTH-1:0] block_data,
-                          input [AGE_BITS-1:0] age1, input [AGE_BITS-1:0] age2,
-                          input [AGE_BITS-1:0] age3, input [AGE_BITS-1:0] age4,
-                          input [VALID_BIT-1:0] valid1, valid2, valid3, valid4,
+  task provide_candidates(input [TAG_BITS-1:0] tag1, tag2, tag3, tag4,
+                          input [BLOCK_DATA_WIDTH-1:0] block_data, input [AGE_BITS-1:0] age1, age2,
+                          age3, age4, input [VALID_BIT-1:0] valid1, valid2, valid3, valid4,
                           input [DIRTY_BIT-1:0] dirty1, dirty2, dirty3, dirty4);
     // Construct each candidate with the specified age, valid, dirty bits and tag                                                                         
-    candidate_1 = {valid1, dirty1, age1, tag, block_data};
-    candidate_2 = {valid2, dirty2, age2, tag, block_data};
-    candidate_3 = {valid3, dirty3, age3, tag, block_data};
-    candidate_4 = {valid4, dirty4, age4, tag, block_data};
+    candidate_1 = {valid1, dirty1, age1, tag1, block_data};
+    candidate_2 = {valid2, dirty2, age2, tag2, block_data};
+    candidate_3 = {valid3, dirty3, age3, tag3, block_data};
+    candidate_4 = {valid4, dirty4, age4, tag4, block_data};
   endtask
 
   // Task to provide memory data                                              
@@ -198,8 +197,8 @@ module cache_controller_tb ();
 
     // Test case 1: Read hit in candidate 1                                 
     $display("\nTest Case 1: Read hit in candidate 1");
-    provide_candidates(12'hABC, test_block_data, 2'b00, 2'b01, 2'b10, 2'b11, 1'b1, 1'b1, 1'b1, 1'b1,
-                       1'b1, 1'b1, 1'b1, 1'b1);
+    provide_candidates(12'hABC, 12'hDEF, 12'h123, 12'h456, test_block_data, 2'b00, 2'b01, 2'b10,
+                       2'b11, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1);
     #10;
     cpu_read(32'h0000_0ABC);  // This should hit in candidate 1             
     wait_for_cache_access();
@@ -208,8 +207,8 @@ module cache_controller_tb ();
 
     // Test case 2: Read miss requiring eviction                            
     $display("\nTest Case 2: Read miss requiring eviction");
-    provide_candidates(12'hDEF, test_block_data, 2'b11, 2'b10, 2'b01, 2'b00, 1'b0, 1'b1, 1'b1, 1'b1,
-                       1'b0, 1'b1, 1'b1, 1'b1);
+    provide_candidates(12'hDEF, 12'h123, 12'h456, 12'h789, test_block_data, 2'b11, 2'b10, 2'b01,
+                       2'b00, 1'b0, 1'b1, 1'b1, 1'b1, 1'b0, 1'b1, 1'b1, 1'b1);
     #10;
     cache_ready = 1;
     cpu_read(32'h0000_0ABC);  // This should be a miss                      
@@ -222,8 +221,8 @@ module cache_controller_tb ();
 
     // Test case 3: Write hit in candidate 3                                
     $display("\nTest Case 3: Write hit in candidate 3");
-    provide_candidates(12'hDEF, test_block_data, 2'b11, 2'b10, 2'b01, 2'b00, 1'b1, 1'b1, 1'b1, 1'b1,
-                       1'b1, 1'b1, 1'b1, 1'b1);
+    provide_candidates(12'hDEF, 12'h123, 12'h456, 12'h789, test_block_data, 2'b11, 2'b10, 2'b01,
+                       2'b00, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1, 1'b1);
     #10;
     cache_ready = 1;
     test_word_data = 32'hCAFEBABE;
@@ -234,8 +233,8 @@ module cache_controller_tb ();
 
     // Test case 4: Write miss                                              
     $display("\nTest Case 4: Write miss");
-    provide_candidates(12'h123, test_block_data, 2'b11, 2'b10, 2'b01, 2'b00, 1'b0, 1'b0, 1'b1, 1'b1,
-                       1'b0, 1'b0, 1'b1, 1'b1);
+    provide_candidates(12'h123, 12'h456, 12'h789, 12'hABC, test_block_data, 2'b11, 2'b10, 2'b01,
+                       2'b00, 1'b0, 1'b0, 1'b1, 1'b1, 1'b0, 1'b0, 1'b1, 1'b1);
     #10;
     cache_ready = 1;
     test_word_data = 32'hFACECAFE;
