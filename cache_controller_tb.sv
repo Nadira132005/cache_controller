@@ -101,9 +101,24 @@ module cache_controller_tb ();
   // Initialize test block data with distinct patterns for easier verification
   initial begin
     for (integer i = 0; i < 16; i++) begin
-      test_block_data[i*32+:32] = 32'hDEAD_BEEF + i;
+      test_block_data[i*32+:32] = 32'hDEADBEEF + i;
     end
   end
+  initial begin
+    forever begin
+      // Wait for the condition to become true
+      wait (cache_enable && ~cache_rw);
+
+      // Wait 3 rising clock edges
+      repeat (3) @(posedge clk);
+
+      // Pulse cache_ready for 1 clock
+      cache_ready = 1;
+      @(posedge clk);
+      cache_ready = 0;
+    end
+  end
+
 
   // Task to apply a CPU read request                                         
   task cpu_read(input [WORD_SIZE-1:0] addr);
@@ -138,14 +153,7 @@ module cache_controller_tb ();
     candidate_1 = {valid1, dirty1, age1, tag, block_data};
     candidate_2 = {valid2, dirty2, age2, tag, block_data};
     candidate_3 = {valid3, dirty3, age3, tag, block_data};
-    candidate_4 = {
-      valid4, dirty4, age4, age4, tag, block_data
-    };  // Note: age4 is repeated intentionally                                                  
-
-    // Wait for cache to be accessed                                        
-    if (cache_ready) begin
-      $display("Cache ready asserted. Providing candidates with tag 0x%05x", tag);
-    end
+    candidate_4 = {valid4, dirty4, age4, tag, block_data};
   endtask
 
   // Task to provide memory data                                              
@@ -166,8 +174,6 @@ module cache_controller_tb ();
   task wait_for_cache_access();
     wait (cache_ready == 1);
     $display("Cache access completed at time %0t", $time);
-    @(posedge clk);
-    cache_ready = 0;
   endtask
 
   // Test process                                                             
@@ -194,8 +200,10 @@ module cache_controller_tb ();
     $display("\nTest Case 1: Read hit in candidate 1");
     provide_candidates(12'hABC, test_block_data, 2'b00, 2'b01, 2'b10, 2'b11, 1'b1, 1'b1, 1'b1, 1'b1,
                        1'b1, 1'b1, 1'b1, 1'b1);
+    #10;
     cpu_read(32'h0000_0ABC);  // This should hit in candidate 1             
     wait_for_cache_access();
+    wait (uut.current_state == uut.IDLE);
     #20;
 
     // Test case 2: Read miss requiring eviction                            
@@ -254,22 +262,11 @@ module cache_controller_tb ();
     $finish;
   end
 
-  function string state_to_string(input [2:0] state);
-    case (state)
-      uut.IDLE:          return "IDLE";
-      uut.CHECK_HIT:     return "CHECK_HIT";
-      uut.EVICT:         return "EVICT";
-      uut.ALLOCATE:      return "ALLOCATE";
-      uut.SEND_TO_CACHE: return "SEND_TO_CACHE";
-      default:           return "UNKNOWN";
-    endcase
-  endfunction
-
+  // Monitor signals                                                          
   initial begin
     $monitor(
-        "Time: %0t | State: %s | cache_enable: %b | mem_req_enable: %b | bank_selector: %b | hit: %b | miss: %b",
-        $time, state_to_string(uut.current_state), cache_enable, mem_req_enable, bank_selector,
-        uut.hit, uut.miss);
+        "Time: %0t | State: %b | cache_enable: %b | mem_req_enable: %b | bank_selector: %b | hit: %b | miss: %b",
+        $time, uut.current_state, cache_enable, mem_req_enable, bank_selector, uut.hit, uut.miss);
   end
 
 endmodule
