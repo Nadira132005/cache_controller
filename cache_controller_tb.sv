@@ -14,29 +14,29 @@ module cache_controller_tb ();
   parameter BANK = 4;
 
   // Signals                                                                  
-  logic clk;
-  logic rst_n;
+  reg clk;
+  reg rst_n;
 
   // CPU signals                                                              
-  logic [WORD_SIZE-1:0] cpu_req_addr;
-  logic [WORD_SIZE-1:0] cpu_req_datain;
+  reg [WORD_SIZE-1:0] cpu_req_addr;
+  reg [WORD_SIZE-1:0] cpu_req_datain;
   wire [WORD_SIZE-1:0] cpu_res_dataout;
   wire cpu_res_ready;
-  logic cpu_req_rw;
-  logic cpu_req_enable;
+  reg cpu_req_rw;
+  reg cpu_req_enable;
 
   // Memory signals                                                           
   wire mem_req_rw;
   wire mem_req_enable;
   wire [WORD_SIZE-1:0] mem_req_addr;
   wire [BLOCK_DATA_WIDTH-1:0] mem_req_dataout;
-  logic [BLOCK_DATA_WIDTH-1:0] mem_req_datain;
-  logic mem_req_ready;
+  reg [BLOCK_DATA_WIDTH-1:0] mem_req_datain;
+  reg mem_req_ready;
 
   // Cache signals                                                            
   wire cache_enable;
   wire cache_rw;
-  logic cache_ready;
+  reg cache_ready;
   reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_1;
   reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_2;
   reg [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_3;
@@ -71,6 +71,7 @@ module cache_controller_tb ();
       .cpu_req_enable(cpu_req_enable),
       .mem_req_addr(mem_req_addr),
       .mem_req_dataout(mem_req_dataout),
+      .mem_req_datain(mem_req_datain),
       .mem_req_rw(mem_req_rw),
       .mem_req_enable(mem_req_enable),
       .mem_req_ready(mem_req_ready),
@@ -95,22 +96,17 @@ module cache_controller_tb ();
   end
 
   // Test data                                                                
-  logic [BLOCK_DATA_WIDTH-1:0] test_block_data;
-  logic [WORD_SIZE-1:0] test_word_data;
+  reg [BLOCK_DATA_WIDTH-1:0] test_block_data_candidates = {BLOCK_DATA_WIDTH{1'b0}};
+  reg [BLOCK_DATA_WIDTH-1:0] test_block_data_mem = {BLOCK_DATA_WIDTH{1'b0}};
+  reg [WORD_SIZE-1:0] test_word_data;
 
-  // Initialize test block data with distinct patterns for easier verification
-  initial begin
-    for (integer i = 0; i < 16; i++) begin
-      test_block_data[i*32+:32] = 32'hDEADBEEF + i;
-    end
-  end
   initial begin
     forever begin
       // Wait for the condition to become true
-      wait (cache_enable && ~cache_rw);
+      wait (cache_enable);
 
       // Wait 3 rising clock edges
-      repeat (3) @(posedge clk);
+      repeat (4) @(posedge clk);
 
       // Pulse cache_ready for 1 clock
       cache_ready = 1;
@@ -138,6 +134,7 @@ module cache_controller_tb ();
     cpu_req_datain = data;
     @(posedge clk);
     cpu_req_enable = 0;
+    cpu_req_rw = 0;
     $display("CPU WRITE request: address 0x%08x, data 0x%08x", addr, data);
   endtask
 
@@ -152,16 +149,11 @@ module cache_controller_tb ();
     candidate_4 = _candidate4;
   endtask
 
-  // Task to provide memory data                                              
-  task provide_memory_data(input [BLOCK_DATA_WIDTH-1:0] data);
-    mem_req_datain = data;
-  endtask
 
   // Task to wait for memory request to be asserted                           
-  task wait_for_mem_req(input [BLOCK_DATA_WIDTH-1:0] test_block_data);
+  task wait_for_mem_req();
     wait (mem_req_enable);
     $display("Memory request asserted at time %0t", $time);
-    provide_memory_data(test_block_data);
     mem_req_ready = 1;  // Indicate memory has valid data
     @(posedge clk);
     mem_req_ready = 0;
@@ -184,6 +176,13 @@ module cache_controller_tb ();
     cpu_req_datain = 0;
     mem_req_ready = 0;
     cache_ready = 0;
+    for (integer i = 0; i < 16; i++) begin
+      test_block_data_candidates[i*32+:32] = 32'hDEADBEEF + i;
+    end
+    for (integer i = 0; i < 16; i++) begin
+      test_block_data_mem[i*32+:32] = 32'hFACEB00C + i;
+    end
+    mem_req_datain = test_block_data_mem;
 
     // Dump waves for gtkwave                                               
     $dumpfile("cache_controller_tb.vcd");
@@ -191,70 +190,147 @@ module cache_controller_tb ();
 
     // Release reset                                                        
     #10 rst_n = 1;
-    #10 rst_n = 1;  // Release reset after a short delay
+    #10 rst_n = 0;
+    #10 rst_n = 1;
+    @(posedge clk);
 
     // Test case 1: Read hit in candidate 1                                 
     $display("\nTest Case 1: Read hit in candidate 1");
-    provide_candidates({1'b1, 1'b1, 2'b00, {9'd0, 12'hABC}, test_block_data}, {
-                       1'b1, 1'b1, 2'b01, {9'd0, 12'hDEF}, test_block_data}, {
-                       1'b1, 1'b1, 2'b10, {9'd0, 12'h123}, test_block_data}, {
-                       1'b1, 1'b1, 2'b11, {9'd0, 12'h456}, test_block_data});
-    #10;
-    cpu_read(32'h0000_0ABC);  // This should hit in candidate 1             
+    provide_candidates({1'b1, 1'b1, 2'b10, {9'd0, 12'hABC}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b01, {9'd0, 12'hDEF}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b00, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b11, {9'd0, 12'h456}, test_block_data_candidates});
+    @(posedge clk);
+    cpu_read({{9'd0}, {12'hABC}, {7'd0}, {4'd0}});  // This should hit in candidate 1             
     wait_for_cache_access();
     wait (cpu_res_ready);
-    $display("Response data: 0x%08x", cpu_res_dataout);
+    $display("Response data: 0x%08x, new age: %b, %b, %b, %b", cpu_res_dataout, age_1, age_2,
+             age_3, age_4);
     wait (uut.current_state == uut.IDLE);
-    #20;
+
+    @(posedge clk);
+    @(posedge clk);
 
     // Test case 2: Read miss without eviction                       
-    $display("\nTest Case 2: Read miss not without eviction");
-    provide_candidates({1'b0, 1'b0, 2'b11, {9'd0, 12'hDEF}, test_block_data}, {
-                       1'b0, 1'b0, 2'b10, {9'd0, 12'h123}, test_block_data}, {
-                       1'b1, 1'b1, 2'b01, {9'd0, 12'h456}, test_block_data}, {
-                       1'b1, 1'b1, 2'b00, {9'd0, 12'h789}, test_block_data});
-    cpu_read(32'h0000_0ABC);
-    wait_for_mem_req(test_block_data);
+    $display("\nTest Case 2: Read miss without eviction");
+    provide_candidates({1'b1, 1'b0, 2'b10, {9'd0, 12'hDEF}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b11, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b01, {9'd0, 12'h456}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b00, {9'd0, 12'h789}, test_block_data_candidates});
+    cpu_read(32'h000A_0000);
+    wait_for_mem_req();
     wait (uut.current_state == uut.IDLE);
+    $display("Response data: 0x%08x, %h, bank: %b, new age: %b, %b, %b, %b", cpu_res_dataout,
+             uut.candidate_write, uut.bank_selector, age_1, age_2, age_3, age_4);
+
+    @(posedge clk);
+    @(posedge clk);
 
     // Test Case 3: Write hit in candidate 3
     $display("\nTest Case 3: Write hit in candidate 3");
-    provide_candidates({1'b1, 1'b1, 2'b11, {9'd0, 12'hDEF}, test_block_data}, {
-                       1'b1, 1'b1, 2'b10, {9'd0, 12'h123}, test_block_data}, {
-                       1'b1, 1'b1, 2'b01, {9'd0, 12'h456}, test_block_data}, {
-                       1'b1, 1'b1, 2'b00, {9'd0, 12'h789}, test_block_data});
-    #10;
-    cache_ready = 1;
+    provide_candidates({1'b1, 1'b1, 2'b11, {9'd0, 12'hDEF}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b10, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b01, {9'd0, 12'h456}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b00, {9'd0, 12'h789}, test_block_data_candidates});
     test_word_data = 32'hCAFE_BABE;
-    cpu_write(32'h0000_0DEF,
+    cpu_write({{9'd0}, {12'hDEF}, {7'd0}, {4'd1}},
               test_word_data);  // This should hit in candidate 3                                                                     
     wait_for_cache_access();
-    #20;
+    wait (uut.current_state == uut.IDLE);
+    $display("Write successful, candidate write data: %h, new ages: %b, %b, %b, %b",
+             uut.candidate_write, age_1, age_2, age_3, age_4);
 
-    // Test case 4: Write miss                                              
-    $display("\nTest Case 4: Write miss");
-    provide_candidates({1'b0, 1'b0, 2'b11, 12'h123, test_block_data}, {
-                       1'b0, 1'b0, 2'b10, 12'h456, test_block_data}, {
-                       1'b1, 1'b1, 2'b01, 12'h789, test_block_data}, {
-                       1'b1, 1'b1, 2'b00, 12'hABC, test_block_data});
-    #10;
-    cache_ready = 1;
-    test_word_data = 32'hFACE_CAFE;
-    cpu_write(32'h0000_0ABD, test_word_data);  // This should be a miss
-    wait_for_mem_req(test_block_data);
+    @(posedge clk);
+    @(posedge clk);
+
+    // Test case 4: Write miss no eviction                      
+    $display("\nTest Case 4: Write miss no eviction");
+    provide_candidates({1'b1, 1'b0, 2'b11, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b10, {9'd0, 12'h456}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b01, {9'd0, 12'h789}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b00, {9'd0, 12'hABC}, test_block_data_candidates});
+    test_word_data = 32'hCAFE_BABE;
+    cpu_write({{9'd0}, {12'hDEF}, {7'd0}, {4'd1}}, test_word_data);
+    wait_for_cache_access();
+    wait_for_mem_req();
+    wait (uut.current_state == uut.IDLE);
+    $display("Write successful, candidate write data: %h, new ages: %b, %b, %b, %b",
+             uut.candidate_write, age_1, age_2, age_3, age_4);
+
+    @(posedge clk);
+    @(posedge clk);
+
+
+    // Test case 5: Write hit with eviction
+    $display("\nTest Case 5: Write hit with eviction");
+    provide_candidates({1'b1, 1'b1, 2'b11, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b10, {9'd0, 12'h456}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b01, {9'd0, 12'h789}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b00, {9'd0, 12'hABC}, test_block_data_candidates});
+    test_word_data = 32'hCAFE_BABE;
+    cpu_write({{9'd0}, {12'hDEF}, {7'd0}, {4'd1}}, test_word_data);
+    wait_for_cache_access();
+    wait_for_mem_req();
+    wait_for_mem_req();
+    wait (uut.current_state == uut.IDLE);
+    $display("Write successful, candidate write data: %h, new ages: %b, %b, %b, %b",
+             uut.candidate_write, age_1, age_2, age_3, age_4);
+
+    @(posedge clk);
+    @(posedge clk);
+
+
+    // Test case 6: Read miss with eviction
+    $display("\nTest Case 6: Read miss with eviction");
+    provide_candidates({1'b1, 1'b1, 2'b11, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b10, {9'd0, 12'h456}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b01, {9'd0, 12'h789}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b00, {9'd0, 12'hABC}, test_block_data_candidates});
+    cpu_read({{9'd0}, {12'hDEF}, {7'd0}, {4'd1}});
+    wait_for_cache_access();
+    wait_for_mem_req();
+    wait_for_mem_req();
+    wait (cpu_res_ready);
+    $display(
+        "Read successful, CPU data: 0x%h, candidate write data: 0x%h, new ages: %b, %b, %b, %b",
+        cpu_res_dataout, uut.candidate_write, age_1, age_2, age_3, age_4);
     wait (uut.current_state == uut.IDLE);
 
-    // Test case 5: Read hit after write                                    
-    $display("\nTest Case 5: Read hit after write");
-    provide_candidates({1'b0, 1'b0, 2'b11, 12'h123, test_block_data}, {
-                       1'b0, 1'b0, 2'b10, 12'h456, test_block_data}, {
-                       1'b1, 1'b1, 2'b01, 12'h789, test_block_data}, {
-                       1'b1, 1'b1, 2'b00, 12'hABC, test_block_data});
-    #10;
-    cache_ready = 1;
-    cpu_read(32'h0000_0ABC);  // This should hit in candidate 4             
+    @(posedge clk);
+    @(posedge clk);
+
+    // Test case 7: Read miss with empty candidates
+    $display("\nTest Case 7: Read miss with empty candidates");
+    provide_candidates({1'b1, 1'b1, 2'b01, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b00, {9'd0, 12'h0}, {BLOCK_DATA_WIDTH{1'b0}}}, {
+                       1'b0, 1'b0, 2'b00, {9'd0, 12'h0}, {BLOCK_DATA_WIDTH{1'b0}}}, {
+                       1'b0, 1'b0, 2'b00, {9'd0, 12'h0}, {BLOCK_DATA_WIDTH{1'b0}}});
+    cpu_read({{9'd0}, {12'hDEF}, {7'd0}, {4'd2}});
     wait_for_cache_access();
-    #20;
+    wait_for_mem_req();
+    wait (cpu_res_ready);
+    $display(
+        "Read successful, CPU data: 0x%h, candidate write data: 0x%h, new ages: %b, %b, %b, %b",
+        cpu_res_dataout, uut.candidate_write, age_1, age_2, age_3, age_4);
+    wait (uut.current_state == uut.IDLE);
+
+    @(posedge clk);
+    @(posedge clk);
+
+    // Test case 8: Write miss with empty candidates
+    $display("\nTest Case 8: Write miss with empty candidates");
+    provide_candidates({1'b1, 1'b1, 2'b01, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b00, {9'd0, 12'h777}, {BLOCK_DATA_WIDTH{1'b0}}}, {
+                       1'b0, 1'b0, 2'b00, {9'd0, 12'h0}, {BLOCK_DATA_WIDTH{1'b0}}}, {
+                       1'b0, 1'b0, 2'b00, {9'd0, 12'h0}, {BLOCK_DATA_WIDTH{1'b0}}});
+    test_word_data = 32'hCAFE_BABE;
+    cpu_write({{9'd0}, {12'hDEF}, {7'd0}, {4'd1}}, test_word_data);
+    wait_for_cache_access();
+    wait_for_mem_req();
+
+    wait (uut.current_state == uut.IDLE);
+    $display("Write successful, candidate write data: %h, new ages: %b, %b, %b, %b",
+             uut.candidate_write, age_1, age_2, age_3, age_4);
 
     // Finish simulation                                                    
     $display("\nTestbench completed. Exiting...");

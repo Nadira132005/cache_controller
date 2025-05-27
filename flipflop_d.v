@@ -14,6 +14,7 @@ module flipflop_d #(
         end else if (load) begin
             q <= d;
         end
+        else q <= q;
     end
 
 endmodule

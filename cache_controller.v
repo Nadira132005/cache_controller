@@ -63,6 +63,28 @@ module cache_controller #(
   wire [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0]
       candidate_1_reg, candidate_2_reg, candidate_3_reg, candidate_4_reg;
 
+  wire cache_ready_intermediate;
+  flipflop_d #(
+      .WIDTH(1)
+  ) cache_ready_inter (
+      .clk(clk),
+      .rst_n(rst_n),
+      .load(1'b1),
+      .d(cache_ready),
+      .q(cache_ready_intermediate)
+  );
+
+  wire cache_ready_reg;
+  flipflop_d #(
+      .WIDTH(1)
+  ) cache_ready_reg_delay (
+      .clk(clk),
+      .rst_n(rst_n),
+      .load(1'b1),
+      .d(cache_ready_intermediate),
+      .q(cache_ready_reg)
+  );
+
   // Register candidate data when cache_ready is active
   flipflop_d #(
       .WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)
@@ -152,7 +174,6 @@ module cache_controller #(
   assign candidate_1_valid = candidate_1_reg[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START];
   assign candidate_1_tag   = candidate_1_reg[TAG_START+TAG_BITS-1:TAG_START];
 
-
   wire [ TAG_BITS-1:0] candidate_2_tag;
   wire [ AGE_BITS-1:0] candidate_2_age;
   wire [DIRTY_BIT-1:0] candidate_2_dirty;
@@ -181,12 +202,14 @@ module cache_controller #(
   assign candidate_4_tag   = candidate_4_reg[TAG_START+TAG_BITS-1:TAG_START];
 
   wire hit, hit_1, hit_2, hit_3, hit_4, miss;
-  assign hit_1 = (candidate_1_tag == cpu_addr_tag && candidate_1[VALID_BIT_START] == 1'b1);
-  assign hit_2 = (candidate_2_tag == cpu_addr_tag && candidate_2[VALID_BIT_START] == 1'b1);
-  assign hit_3 = (candidate_3_tag == cpu_addr_tag && candidate_3[VALID_BIT_START] == 1'b1);
-  assign hit_4 = (candidate_4_tag == cpu_addr_tag && candidate_4[VALID_BIT_START] == 1'b1);
+  assign hit_1 = (candidate_1_tag == cpu_addr_tag && candidate_1_valid == 1'b1);
+  assign hit_2 = (candidate_2_tag == cpu_addr_tag && candidate_2_valid == 1'b1);
+  assign hit_3 = (candidate_3_tag == cpu_addr_tag && candidate_3_valid == 1'b1);
+  assign hit_4 = (candidate_4_tag == cpu_addr_tag && candidate_4_valid == 1'b1);
   assign hit   = hit_1 | hit_2 | hit_3 | hit_4;
   assign miss  = ~hit;
+
+  wire free_banks = ~(candidate_1_valid & candidate_2_valid & candidate_3_valid & candidate_4_valid);
 
   // The least recently used (LRU) candidate is the one with the highest age (one hot encoding)
   wire [BANK-1:0] LRU_candidate;
@@ -199,7 +222,12 @@ module cache_controller #(
 
   // Bank selector is a one-hot encoding of the hit candidates
   // and must be chosen by LRU policy
-  assign bank_selector = hit ? {hit_4, hit_3, hit_2, hit_1} : LRU_candidate;
+  assign bank_selector = hit ? {hit_4, hit_3, hit_2, hit_1} : free_banks ? 
+     (~candidate_1_valid ? 4'b0001 :
+      ~candidate_2_valid ? 4'b0010 :
+      ~candidate_3_valid ? 4'b0100 :
+      ~candidate_4_valid ? 4'b1000 : 4'b0000) : 
+     LRU_candidate ;
 
   // If there is a WRITE HIT we want to know which block we will put the data in
   reg [BLOCK_DATA_WIDTH-1:0] candidate_hit_data;
@@ -258,7 +286,7 @@ module cache_controller #(
       // on WRITE: bring the block from main memory and write the cpu data word at the correct block offset
       (cache_rw ? modified_mem_block
       // on READ: just bring the block from main memory 
-      : mem_req_dataout) :
+      : mem_req_datain) :
       // If there is a cache HIT try: 
       // on WRITE: take the hit block and write the cpu data word at the correct block offset
       (cache_rw ? modified_candidate_block
@@ -276,6 +304,7 @@ module cache_controller #(
   assign candidate_write[AGE_START+AGE_BITS-1:AGE_START] = 2'b00;
 
 
+  wire [2:0] hit_element_age;
   assign hit_element_age = hit_1 ? candidate_1_age :
                       hit_2 ? candidate_2_age :
                       hit_3 ? candidate_3_age :
@@ -310,7 +339,7 @@ module cache_controller #(
 
   assign candidate_write[DIRTY_BIT_START+DIRTY_BIT-1:DIRTY_BIT_START] =
       // Set dirty on WRITE (either hit or miss)
-      cpu_req_rw ? 1'b1 :
+      cpu_req_rw_reg ? 1'b1 :
       // If READ MISS set dirty bit to 0 because we have fresh data from memory
       (miss ? 1'b0 :
       // If READ HIT the dirty bit SHOULD NOT CHANGE!
@@ -318,15 +347,15 @@ module cache_controller #(
 
   assign candidate_write[VALID_BIT_START+VALID_BIT-1:VALID_BIT_START] = 1'b1;
   block_selector #(
-    .WORD_SIZE(WORD_SIZE),
-    .BLOCK_DATA_WIDTH(BLOCK_DATA_WIDTH)
+      .WORD_SIZE(WORD_SIZE),
+      .BLOCK_DATA_WIDTH(BLOCK_DATA_WIDTH)
   ) data_selector (
-    .block_data(candidate_hit_data),
-    .block_offset(cpu_addr_block_offset),
-    .selected_word(cpu_res_dataout)
+      .block_data(hit ? candidate_hit_data : candidate_write),
+      .block_offset(cpu_addr_block_offset),
+      .selected_word(cpu_res_dataout)
   );
 
-  reg [3:0] current_state, next_state;
+  reg [2:0] current_state, next_state;
 
   // State transition logic
   always @(*) begin
@@ -341,7 +370,7 @@ module cache_controller #(
       end
 
       CHECK_HIT: begin
-        if (cache_ready) begin
+        if (cache_ready_reg) begin
           if (hit) begin
             next_state = SEND_TO_CACHE;  // Cache hit, send data to CPU or write to cache
           end else begin
@@ -378,6 +407,11 @@ module cache_controller #(
   always @(*) begin
     // Default assignments
     cache_enable = 1'b0;
+    cache_rw = 1'b0;
+    mem_req_enable = 1'b0;
+    mem_req_rw = 1'b0;
+    mem_req_addr = 32'd0;
+    cpu_res_ready = 1'b0;
 
     case (current_state)
       IDLE: begin
@@ -401,7 +435,7 @@ module cache_controller #(
       end
 
       SEND_TO_CACHE: begin
-        if (cpu_req_addr_reg) begin
+        if (cpu_req_rw_reg) begin
           // Write to cache
           cache_enable = 1'b1;
           cache_rw = 1'b1;
