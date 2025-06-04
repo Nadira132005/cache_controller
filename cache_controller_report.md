@@ -12,6 +12,111 @@ The implementation process began with a clear specification of the cache archite
 
 The design emphasizes modularity and parameterization, allowing for easy adaptation to different cache configurations. The FSM in the controller ensures correct sequencing of operations, including hit detection, LRU updates, dirty block eviction, and block allocation from memory.
 
+## FSM and State Transition Diagram
+
+### Finite State Machine (FSM) Overview
+
+The cache controller is implemented as a finite state machine (FSM) that manages the sequence of operations required to process CPU requests, interact with the cache, and coordinate with main memory. The FSM ensures correct handling of cache hits, misses, write-backs, and block allocations.
+
+#### FSM States
+
+- **IDLE**: Waits for a CPU request.
+- **CHECK_HIT**: Checks if the requested address is present in the cache (hit) or not (miss).
+- **EVICT**: If a miss occurs and the LRU candidate is dirty, writes the dirty block back to main memory.
+- **ALLOCATE**: Allocates a new block from main memory (on miss, after eviction if needed).
+- **SEND_TO_CACHE**: Updates the cache with new data or returns data to the CPU.
+
+#### State Transition Diagram
+
+Below is a textual representation of the FSM state transitions:
+
+```
+         +------+
+         | IDLE |
+         +------+
+             |
+             v  (cpu_req_enable)
+        +-----------+
+        | CHECK_HIT |
+        +-----------+
+         /         \
+        /hit        \miss
+       v             v
++----------------+   +--------+
+| SEND_TO_CACHE  |   | EVICT  |<-------------------+
++----------------+   +--------+                    |
+       |                | (mem_req_ready)          |
+       |                v                          |
+       |           +----------+                    |
+       |           | ALLOCATE |<---+               |
+       |           +----------+    | (no eviction) |
+       |                |          |               |
+       |                v          |               |
+       +<-----------+----------+---+               |
+                    | SEND_TO_CACHE|---------------+
+                    +--------------+
+```
+
+- From **IDLE**, the FSM waits for a CPU request and transitions to **CHECK_HIT**.
+- In **CHECK_HIT**, if there is a cache hit, it transitions to **SEND_TO_CACHE**. If there is a miss and eviction is needed, it transitions to **EVICT**; otherwise, it goes to **ALLOCATE**.
+- **EVICT** waits for the memory to be ready, then transitions to **ALLOCATE**.
+- **ALLOCATE** waits for the memory to be ready, then transitions to **SEND_TO_CACHE**.
+- **SEND_TO_CACHE** completes the operation (write to cache or return data to CPU) and returns to **IDLE**.
+
+#### FSM State Encoding in Code
+
+```verilog
+parameter IDLE = 3'b000;
+parameter CHECK_HIT = 3'b001;
+parameter EVICT = 3'b010;
+parameter ALLOCATE = 3'b011;
+parameter SEND_TO_CACHE = 3'b100;
+
+reg [2:0] current_state, next_state;
+
+// State transition logic
+always @(*) begin
+  next_state = current_state;
+  case (current_state)
+    IDLE: begin
+      if (cpu_req_enable) begin
+        next_state = CHECK_HIT;
+      end
+    end
+    CHECK_HIT: begin
+      if (cache_ready_reg) begin
+        if (hit) begin
+          next_state = SEND_TO_CACHE;
+        end else begin
+          if (evict) begin
+            next_state = EVICT;
+          end else begin
+            next_state = ALLOCATE;
+          end
+        end
+      end
+    end
+    EVICT: begin
+      if (mem_req_ready) begin
+        next_state = ALLOCATE;
+      end
+    end
+    ALLOCATE: begin
+      if (mem_req_ready) begin
+        next_state = SEND_TO_CACHE;
+      end
+    end
+    SEND_TO_CACHE: begin
+      if (cache_ready || cpu_res_ready) begin
+        next_state = IDLE;
+      end
+    end
+  endcase
+end
+```
+
+---
+
 ## 2. Technical Challenges Encountered and Solutions Implemented
 
 ### a. LRU Replacement Policy
