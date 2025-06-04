@@ -366,57 +366,9 @@ initial begin
 end
 ```
 
-## 3. Analysis of Performance Data Collected During Simulations
+## f. Code Structure and Explanation
 
-Simulation results were collected using the testbench, which exercises the cache controller with a variety of access patterns. Key performance metrics include hit rate, miss rate, and the number of memory transactions (reads/writes).
-
-### a. Hit and Miss Behavior
-
-- **Read/Write Hits:** The controller correctly identifies hits in any of the four candidates, updates the LRU ages, and returns data to the CPU with minimal latency (typically within a few cycles).
-- **Misses Without Eviction:** When a miss occurs and there is an invalid (empty) candidate, the controller allocates the new block without requiring a write-back, reducing memory traffic.
-- **Misses With Eviction:** If all candidates are valid and the LRU candidate is dirty, the controller performs a write-back to memory before allocating the new block. This is correctly sequenced and verified in the testbench.
-
-### b. LRU Policy Effectiveness
-
-Waveform analysis and testbench output confirm that the LRU policy is correctly maintained. After each access, the ages of the candidates are updated as expected, and the oldest line is always selected for replacement. This ensures optimal cache utilization and minimizes unnecessary evictions.
-
-### c. Memory Traffic
-
-The testbench logs show that memory transactions (reads and writes) occur only on misses and evictions, as expected. Write-backs are performed only for dirty blocks, reducing unnecessary memory writes.
-
-### d. Latency and Throughput
-
-- **Cache Hits:** Data is returned to the CPU with low latency, typically within 1-2 cycles after the request.
-- **Cache Misses:** Misses incur additional latency due to memory access and possible eviction, but the FSM ensures correct sequencing and minimal stalling.
-- **Throughput:** The controller can handle back-to-back requests, with the FSM returning to the IDLE state promptly after each operation.
-
-### e. Edge Case Handling
-
-The testbench includes cases with empty candidates and partially filled sets. The controller correctly identifies free slots and avoids unnecessary evictions, demonstrating robust handling of all scenarios.
-
-## 4. Conclusion
-
-The cache controller project successfully implements a parameterized, modular, and robust set-associative cache controller with LRU replacement and write-back support. The design addresses key technical challenges, including LRU management, dirty block handling, and synchronization. Comprehensive simulation and waveform analysis confirm correct functionality, efficient memory usage, and robust handling of all edge cases. The project provides a solid foundation for further exploration of cache architectures and performance optimization.
-
-# Cache Controller Project: Final Report
-
-## 1. Overview of the Design and Implementation Process
-
-The cache controller project was developed to simulate and verify the behavior of a set-associative cache system, focusing on realistic CPU-cache-memory interactions. The design implements a 4-way set-associative cache with 128 sets, 16 words per block (512 bits), and a Least Recently Used (LRU) replacement policy. The controller manages read and write requests from the CPU, handles cache hits and misses, and coordinates with main memory for block allocation and eviction.
-
-The implementation process began with a clear specification of the cache architecture, including parameterization for word size, block size, set count, and associativity. The main modules developed were:
-
-- **cache_controller.v**: The core finite state machine (FSM) that orchestrates cache operations, manages candidate lines, and interfaces with both the CPU and memory.
-- **replacer.v**: A utility module for updating a specific word within a cache block, used during write operations.
-- **cache_controller_tb.sv**: A comprehensive SystemVerilog testbench that simulates a variety of CPU access patterns, including hits, misses, write-backs, and edge cases.
-
-The design emphasizes modularity and parameterization, allowing for easy adaptation to different cache configurations. The FSM in the controller ensures correct sequencing of operations, including hit detection, LRU updates, dirty block eviction, and block allocation from memory.
-
----
-
-## 2. Code Structure and Explanation
-
-### 2.1. `cache_controller.v` — The Main Controller
+### 2.f.1. `cache_controller.v` — The Main Controller
 
 This is the heart of the project. It implements a finite state machine (FSM) to manage the cache's behavior, including hit/miss detection, LRU management, and memory interactions.
 
@@ -496,7 +448,7 @@ endmodule
 
 ---
 
-### 2.2. `replacer.v` — Block Word Replacement Utility
+### 2.f.2. `replacer.v` — Block Word Replacement Utility
 
 This module is used to update a specific word within a cache block, which is essential for write operations (both on hit and miss).
 
@@ -535,7 +487,7 @@ endmodule
 
 ---
 
-### 2.3. `cache_controller_tb.sv` — Testbench
+### 2.f.3. `cache_controller_tb.sv` — Testbench
 
 This SystemVerilog testbench simulates a variety of scenarios to verify the cache controller's correctness and provides detailed, human-readable output for each test case. When you run the testbench, you will see output similar to the following:
 
@@ -831,7 +783,7 @@ module cache_controller_tb ();
 endmodule
 ```
 
-## 4. Analysis of Performance Data Collected During Simulations
+## 3. Analysis of Performance Data Collected During Simulations
 
 Simulation results were collected using the testbench, which exercises the cache controller with a variety of access patterns. Key performance metrics include hit rate, miss rate, and the number of memory transactions (reads/writes).
 
@@ -859,8 +811,6 @@ The testbench logs show that memory transactions (reads and writes) occur only o
 
 The testbench includes cases with empty candidates and partially filled sets. The controller correctly identifies free slots and avoids unnecessary evictions, demonstrating robust handling of all scenarios.
 
----
-
-## 5. Conclusion
+## 4. Conclusion
 
 The cache controller project successfully implements a parameterized, modular, and robust set-associative cache controller with LRU replacement and write-back support. The design addresses key technical challenges, including LRU management, dirty block handling, and synchronization. Comprehensive simulation and waveform analysis confirm correct functionality, efficient memory usage, and robust handling of all edge cases. The project provides a solid foundation for further exploration of cache architectures and performance optimization.
