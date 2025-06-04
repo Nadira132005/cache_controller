@@ -21,6 +21,7 @@ The design emphasizes modularity and parameterization, allowing for easy adaptat
 **Solution:** Each cache line maintains a 2-bit age field. On every access, the controller updates the ages: the accessed line is set to 0, and all valid lines with a lower age are incremented. This logic is implemented combinationally and verified in the testbench. On miss all ages are updated because the block that will be replaced is the oldest one and overflow will correctly make it the youngest. The LRU candidate is selected by finding the line with the maximum age.
 
 **Relevant Code:**
+
 ```verilog
 // Age calculation when there is a hit
 // For the accessed candidate: reset to 0
@@ -61,6 +62,7 @@ assign LRU_candidate = {
 **Solution:** The controller checks the dirty and valid bits of the LRU candidate on a miss. If eviction is required, the block is written to memory before the new block is allocated. The FSM includes explicit EVICT and ALLOCATE states to sequence these operations, and the testbench verifies correct memory transactions.
 
 **Relevant Code:**
+
 ```verilog
 // If there is a cache MISS and the LRU candidate is dirty, we need to evict it
 assign evict = miss && (
@@ -124,6 +126,7 @@ end
 **Solution:** The design uses registered signals and flip-flop modules to synchronize candidate data and control signals. The testbench provides realistic clocking and ready/enable pulses, and the controller FSM waits for appropriate ready signals before proceeding to the next state.
 
 **Relevant Code:**
+
 ```verilog
 // Registered candidates as registers
 wire [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0]
@@ -171,6 +174,7 @@ flipflop_d #(
 **Solution:** All key parameters (word size, block size, set count, associativity, etc.) are defined as module parameters. The replacer and block_selector modules are also parameterized, supporting easy scaling and adaptation.
 
 **Relevant Code:**
+
 ```verilog
 module cache_controller #(
     parameter WORD_SIZE = 32,  // 32 bits per word
@@ -204,6 +208,7 @@ module replacer #(
 **Solution:** The SystemVerilog testbench (`cache_controller_tb.sv`) includes tasks for read/write requests, candidate provisioning, and memory response simulation. It runs a suite of test cases covering read/write hits, misses with and without eviction, and operations with empty or partially filled sets. The testbench also generates VCD waveforms for detailed analysis.
 
 **Relevant Code:**
+
 ```systemverilog
 // Task to apply a CPU read request
 task cpu_read(input [WORD_SIZE-1:0] addr);

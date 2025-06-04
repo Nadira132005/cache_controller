@@ -161,7 +161,7 @@ module cache_controller_tb ();
 
   // Task to wait for cache access to complete                                
   task wait_for_cache_access();
-    wait (cache_ready == 1'b1);
+    wait (cache_ready);
     $display("Cache access completed at time %0t", $time);
   endtask
 
@@ -177,10 +177,10 @@ module cache_controller_tb ();
     mem_req_ready = 0;
     cache_ready = 0;
     for (integer i = 0; i < 16; i++) begin
-      test_block_data_candidates[i*32+:32] = 32'hDEADBEEF + i;
+      test_block_data_candidates[i*32+:32] = 32'hCAC8E_000 + i;
     end
     for (integer i = 0; i < 16; i++) begin
-      test_block_data_mem[i*32+:32] = 32'hFACEB00C + i;
+      test_block_data_mem[i*32+:32] = 32'hBAD_00000 + i;
     end
     mem_req_datain = test_block_data_mem;
 
@@ -226,8 +226,8 @@ module cache_controller_tb ();
     @(posedge clk);
     @(posedge clk);
 
-    // Test Case 3: Write hit in candidate 3
-    $display("\nTest Case 3: Write hit in candidate 3");
+    // Test Case 3: Write hit in candidate 1
+    $display("\nTest Case 3: Write hit in candidate 1");
     provide_candidates({1'b1, 1'b1, 2'b11, {9'd0, 12'hDEF}, test_block_data_candidates}, {
                        1'b1, 1'b1, 2'b10, {9'd0, 12'h123}, test_block_data_candidates}, {
                        1'b1, 1'b1, 2'b01, {9'd0, 12'h456}, test_block_data_candidates}, {

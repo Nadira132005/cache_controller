@@ -1,0 +1,96 @@
+VCD info: dumpfile cache_controller_tb.vcd opened for output.
+Time: 0 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+
+Test Case 1: Read hit in candidate 1
+Time: 45000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+CPU READ request for address 0x0055e000. Waiting for response...
+Time: 55000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Cache access completed at time 85000
+Time: 95000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+Response data: 0xcac8e000, new age: 00, 10, 01, 11
+Time: 105000 | State: 100 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+Time: 115000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+
+Test Case 2: Read miss without eviction
+Time: 135000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 1000 | hit: 0 | miss: 1
+CPU READ request for address 0x000a0000. Waiting for response...
+Time: 145000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 1000 | hit: 0 | miss: 1
+Time: 185000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0010 | hit: 0 | miss: 1
+Memory request asserted at time 195000
+Time: 195000 | State: 011 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0010 | hit: 0 | miss: 1
+Time: 205000 | State: 100 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0010 | hit: 0 | miss: 1
+Response data: 0xbad00000, 1000140bad0000fbad0000ebad0000dbad0000cbad0000bbad0000abad00009bad00008bad00007bad00006bad00005bad00004bad00003bad00002bad00001bad00000, bank: 0010, new age: 11, 00, 10, 01
+Time: 215000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0010 | hit: 0 | miss: 1
+
+Test Case 3: Write hit in candidate 1
+Time: 235000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+CPU WRITE request: address 0x006f7801, data 0xcafebabe
+Time: 245000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+Cache access completed at time 275000
+Time: 295000 | State: 100 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+Write successful, candidate write data: 1800defcac8e00fcac8e00ecac8e00dcac8e00ccac8e00bcac8e00acac8e009cac8e008cac8e007cac8e006cac8e005cac8e004cac8e003cac8e002cafebabecac8e000, new ages: 00, 11, 10, 01
+Time: 345000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+
+Test Case 4: Write miss no eviction
+Time: 365000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+CPU WRITE request: address 0x006f7801, data 0xcafebabe
+Time: 375000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+Cache access completed at time 385000
+Time: 395000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Memory request asserted at time 405000
+Time: 405000 | State: 011 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0001 | hit: 0 | miss: 1
+Time: 415000 | State: 100 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Write successful, candidate write data: 1800defbad0000fbad0000ebad0000dbad0000cbad0000bbad0000abad00009bad00008bad00007bad00006bad00005bad00004bad00003bad00002cafebabebad00000, new ages: 00, 11, 10, 01
+Time: 465000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+
+Test Case 5: Write hit with eviction
+Time: 485000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+CPU WRITE request: address 0x006f7801, data 0xcafebabe
+Time: 495000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Cache access completed at time 505000
+Memory request asserted at time 525000
+Time: 525000 | State: 010 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0001 | hit: 0 | miss: 1
+Memory request asserted at time 535000
+Time: 535000 | State: 011 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0001 | hit: 0 | miss: 1
+Time: 545000 | State: 100 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Write successful, candidate write data: 1800defbad0000fbad0000ebad0000dbad0000cbad0000bbad0000abad00009bad00008bad00007bad00006bad00005bad00004bad00003bad00002cafebabebad00000, new ages: 00, 11, 10, 01
+Time: 595000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+
+Test Case 6: Read miss with eviction
+Time: 615000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+CPU READ request for address 0x006f7801. Waiting for response...
+Time: 625000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Cache access completed at time 635000
+Memory request asserted at time 655000
+Time: 655000 | State: 010 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0001 | hit: 0 | miss: 1
+Memory request asserted at time 665000
+Time: 665000 | State: 011 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0001 | hit: 0 | miss: 1
+Read successful, CPU data: 0xbad00001, candidate write data: 0x1000defbad0000fbad0000ebad0000dbad0000cbad0000bbad0000abad00009bad00008bad00007bad00006bad00005bad00004bad00003bad00002bad00001bad00000, new ages: 00, 11, 10, 01
+Time: 675000 | State: 100 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Time: 685000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+
+Test Case 7: Read miss with empty candidates
+Time: 705000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+CPU READ request for address 0x006f7802. Waiting for response...
+Time: 715000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Cache access completed at time 745000
+Time: 755000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0100 | hit: 0 | miss: 1
+Memory request asserted at time 765000
+Time: 765000 | State: 011 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0100 | hit: 0 | miss: 1
+Read successful, CPU data: 0xbad00002, candidate write data: 0x1000defbad0000fbad0000ebad0000dbad0000cbad0000bbad0000abad00009bad00008bad00007bad00006bad00005bad00004bad00003bad00002bad00001bad00000, new ages: 10, 01, 00, 00
+Time: 775000 | State: 100 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0100 | hit: 0 | miss: 1
+Time: 785000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0100 | hit: 0 | miss: 1
+
+Test Case 8: Write miss with empty candidates
+Time: 805000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0100 | hit: 0 | miss: 1
+CPU WRITE request: address 0x006f7801, data 0xcafebabe
+Time: 815000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0100 | hit: 0 | miss: 1
+Cache access completed at time 845000
+Memory request asserted at time 865000
+Time: 865000 | State: 011 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0100 | hit: 0 | miss: 1
+Time: 875000 | State: 100 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0100 | hit: 0 | miss: 1
+Write successful, candidate write data: 1800defbad0000fbad0000ebad0000dbad0000cbad0000bbad0000abad00009bad00008bad00007bad00006bad00005bad00004bad00003bad00002cafebabebad00000, new ages: 10, 01, 00, 00
+
+Testbench completed. Exiting...
+cache_controller_tb.sv:337: $finish called at 925000 (1ps)
+Time: 925000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0100 | hit: 0 | miss: 1
