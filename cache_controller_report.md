@@ -550,8 +550,92 @@ Time: 55000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 
 Cache access completed at time 85000
 Time: 95000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
 Response data: 0xcac8e000, new age: 00, 10, 01, 11
-...
+Time: 105000 | State: 100 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+Time: 115000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+
+Test Case 2: Read miss without eviction
+Time: 135000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 1000 | hit: 0 | miss: 1
+CPU READ request for address 0x000a0000. Waiting for response...
+Time: 145000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 1000 | hit: 0 | miss: 1
+Time: 185000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0010 | hit: 0 | miss: 1
+Memory request asserted at time 195000
+Time: 195000 | State: 011 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0010 | hit: 0 | miss: 1
+Time: 205000 | State: 100 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0010 | hit: 0 | miss: 1
+Response data: 0xbad00000, 1000140bad0000fbad0000ebad0000dbad0000cbad0000bbad0000abad00009bad00008bad00007bad00006bad00005bad00004bad00003bad00002bad00001bad00000, bank: 0010, new age: 11, 00, 10, 01
+Time: 215000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0010 | hit: 0 | miss: 1
+
+Test Case 3: Write hit in candidate 1
+Time: 235000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+CPU WRITE request: address 0x006f7801, data 0xcafebabe
+Time: 245000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+Cache access completed at time 275000
+Time: 295000 | State: 100 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+Write successful, candidate write data: 1800defcac8e00fcac8e00ecac8e00dcac8e00ccac8e00bcac8e00acac8e009cac8e008cac8e007cac8e006cac8e005cac8e004cac8e003cac8e002cafebabecac8e000, new ages: 00, 11, 10, 01
+Time: 345000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+
+Test Case 4: Write miss no eviction
+Time: 365000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+CPU WRITE request: address 0x006f7801, data 0xcafebabe
+Time: 375000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 1 | miss: 0
+Cache access completed at time 385000
+Time: 395000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Memory request asserted at time 405000
+Time: 405000 | State: 011 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0001 | hit: 0 | miss: 1
+Time: 415000 | State: 100 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Write successful, candidate write data: 1800defbad0000fbad0000ebad0000dbad0000cbad0000bbad0000abad00009bad00008bad00007bad00006bad00005bad00004bad00003bad00002cafebabebad00000, new ages: 00, 11, 10, 01
+Time: 465000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+
+Test Case 5: Write hit with eviction
+Time: 485000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+CPU WRITE request: address 0x006f7801, data 0xcafebabe
+Time: 495000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Cache access completed at time 505000
+Memory request asserted at time 525000
+Time: 525000 | State: 010 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0001 | hit: 0 | miss: 1
+Memory request asserted at time 535000
+Time: 535000 | State: 011 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0001 | hit: 0 | miss: 1
+Time: 545000 | State: 100 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Write successful, candidate write data: 1800defbad0000fbad0000ebad0000dbad0000cbad0000bbad0000abad00009bad00008bad00007bad00006bad00005bad00004bad00003bad00002cafebabebad00000, new ages: 00, 11, 10, 01
+Time: 595000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+
+Test Case 6: Read miss with eviction
+Time: 615000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+CPU READ request for address 0x006f7801. Waiting for response...
+Time: 625000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Cache access completed at time 635000
+Memory request asserted at time 655000
+Time: 655000 | State: 010 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0001 | hit: 0 | miss: 1
+Memory request asserted at time 665000
+Time: 665000 | State: 011 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0001 | hit: 0 | miss: 1
+Read successful, CPU data: 0xbad00001, candidate write data: 0x1000defbad0000fbad0000ebad0000dbad0000cbad0000bbad0000abad00009bad00008bad00007bad00006bad00005bad00004bad00003bad00002bad00001bad00000, new ages: 00, 11, 10, 01
+Time: 675000 | State: 100 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Time: 685000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+
+Test Case 7: Read miss with empty candidates
+Time: 705000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+CPU READ request for address 0x006f7802. Waiting for response...
+Time: 715000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0001 | hit: 0 | miss: 1
+Cache access completed at time 745000
+Time: 755000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0100 | hit: 0 | miss: 1
+Memory request asserted at time 765000
+Time: 765000 | State: 011 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0100 | hit: 0 | miss: 1
+Read successful, CPU data: 0xbad00002, candidate write data: 0x1000defbad0000fbad0000ebad0000dbad0000cbad0000bbad0000abad00009bad00008bad00007bad00006bad00005bad00004bad00003bad00002bad00001bad00000, new ages: 10, 01, 00, 00
+Time: 775000 | State: 100 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0100 | hit: 0 | miss: 1
+Time: 785000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0100 | hit: 0 | miss: 1
+
+Test Case 8: Write miss with empty candidates
+Time: 805000 | State: 000 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0100 | hit: 0 | miss: 1
+CPU WRITE request: address 0x006f7801, data 0xcafebabe
+Time: 815000 | State: 001 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0100 | hit: 0 | miss: 1
+Cache access completed at time 845000
+Memory request asserted at time 865000
+Time: 865000 | State: 011 | cache_enable: 0 | mem_req_enable: 1 | bank_selector: 0100 | hit: 0 | miss: 1
+Time: 875000 | State: 100 | cache_enable: 1 | mem_req_enable: 0 | bank_selector: 0100 | hit: 0 | miss: 1
+Write successful, candidate write data: 1800defbad0000fbad0000ebad0000dbad0000cbad0000bbad0000abad00009bad00008bad00007bad00006bad00005bad00004bad00003bad00002cafebabebad00000, new ages: 10, 01, 00, 00
+
 Testbench completed. Exiting...
+cache_controller_tb.sv:337: $finish called at 925000 (1ps)
+Time: 925000 | State: 000 | cache_enable: 0 | mem_req_enable: 0 | bank_selector: 0100 | hit: 0 | miss: 1
 ```
 
 **How to interpret the output:**
@@ -746,44 +830,6 @@ module cache_controller_tb ();
   end
 endmodule
 ```
-
-**Explanation:**
-
----
-
-## 3. Technical Challenges Encountered and Solutions Implemented
-
-### a. LRU Replacement Policy
-
-**Challenge:** Implementing an efficient and correct LRU policy for a 4-way set-associative cache, ensuring that the "oldest" line is always selected for replacement on a miss.
-
-**Solution:** Each cache line maintains a 2-bit age field. On every access, the controller updates the ages: the accessed line is set to 0, and all valid lines with a lower age are incremented. This logic is implemented combinationally and verified in the testbench. On miss all ages are updated because the block that will be replaced is the oldest one and overflow will correctly make it the youngest. The LRU candidate is selected by finding the line with the maximum age.
-
-### b. Handling Write-Backs and Dirty Blocks
-
-**Challenge:** Correctly managing dirty blocks during eviction, ensuring that modified data is written back to memory before replacement.
-
-**Solution:** The controller checks the dirty and valid bits of the LRU candidate on a miss. If eviction is required, the block is written to memory before the new block is allocated. The FSM includes explicit EVICT and ALLOCATE states to sequence these operations, and the testbench verifies correct memory transactions.
-
-### c. Synchronization and Signal Timing
-
-**Challenge:** Ensuring correct synchronization between the controller, cache, and memory, especially with respect to ready/enable handshakes and clocking.
-
-**Solution:** The design uses registered signals and flip-flop modules to synchronize candidate data and control signals. The testbench provides realistic clocking and ready/enable pulses, and the controller FSM waits for appropriate ready signals before proceeding to the next state.
-
-### d. Parameterization and Modularity
-
-**Challenge:** Making the design flexible and reusable for different cache sizes and associativities.
-
-**Solution:** All key parameters (word size, block size, set count, associativity, etc.) are defined as module parameters. The replacer and block_selector modules are also parameterized, supporting easy scaling and adaptation.
-
-### e. Comprehensive Verification
-
-**Challenge:** Creating a testbench that covers all relevant scenarios, including hits, misses, write-backs, and edge cases (e.g., empty candidates).
-
-**Solution:** The SystemVerilog testbench (`cache_controller_tb.sv`) includes tasks for read/write requests, candidate provisioning, and memory response simulation. It runs a suite of test cases covering read/write hits, misses with and without eviction, and operations with empty or partially filled sets. The testbench also generates VCD waveforms for detailed analysis.
-
----
 
 ## 4. Analysis of Performance Data Collected During Simulations
 
