@@ -18,7 +18,7 @@ The design emphasizes modularity and parameterization, allowing for easy adaptat
 
 **Challenge:** Implementing an efficient and correct LRU policy for a 4-way set-associative cache, ensuring that the "oldest" line is always selected for replacement on a miss.
 
-**Solution:** Each cache line maintains a 2-bit age field. On every access, the controller updates the ages: the accessed line is set to 0, and all valid lines with a lower age are incremented. This logic is implemented combinationally and verified in the testbench. The LRU candidate is selected by finding the line with the maximum age.
+**Solution:** Each cache line maintains a 2-bit age field. On every access, the controller updates the ages: the accessed line is set to 0, and all valid lines with a lower age are incremented. This logic is implemented combinationally and verified in the testbench. On miss all ages are updated because the block that will be replaced is the oldest one and overflow will correctly make it the youngest. The LRU candidate is selected by finding the line with the maximum age.
 
 ### b. Handling Write-Backs and Dirty Blocks
 
