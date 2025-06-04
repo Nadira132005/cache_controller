@@ -64,6 +64,13 @@ assign LRU_candidate = {
 **Relevant Code:**
 
 ```verilog
+
+wire evict_1, evict_2, evict_3, evict_4, evict;
+assign evict_1 = (candidate_1_reg[VALID_BIT_START] == 1'b1 && candidate_1_reg[DIRTY_BIT_START] == 1'b1);
+assign evict_2 = (candidate_2_reg[VALID_BIT_START] == 1'b1 && candidate_2_reg[DIRTY_BIT_START] == 1'b1);
+assign evict_3 = (candidate_3_reg[VALID_BIT_START] == 1'b1 && candidate_3_reg[DIRTY_BIT_START] == 1'b1);
+assign evict_4 = (candidate_4_reg[VALID_BIT_START] == 1'b1 && candidate_4_reg[DIRTY_BIT_START] == 1'b1);
+
 // If there is a cache MISS and the LRU candidate is dirty, we need to evict it
 assign evict = miss && (
     (LRU_candidate[0] && evict_1) ||
@@ -131,28 +138,6 @@ end
 // Registered candidates as registers
 wire [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0]
     candidate_1_reg, candidate_2_reg, candidate_3_reg, candidate_4_reg;
-
-wire cache_ready_intermediate;
-flipflop_d #(
-    .WIDTH(1)
-) cache_ready_inter (
-    .clk(clk),
-    .rst_n(rst_n),
-    .load(1'b1),
-    .d(cache_ready),
-    .q(cache_ready_intermediate)
-);
-
-wire cache_ready_reg;
-flipflop_d #(
-    .WIDTH(1)
-) cache_ready_reg_delay (
-    .clk(clk),
-    .rst_n(rst_n),
-    .load(1'b1),
-    .d(cache_ready_intermediate),
-    .q(cache_ready_reg)
-);
 
 // Register candidate data when cache_ready is active
 flipflop_d #(
