@@ -75,6 +75,7 @@ The testbench includes cases with empty candidates and partially filled sets. Th
 ## 4. Conclusion
 
 The cache controller project successfully implements a parameterized, modular, and robust set-associative cache controller with LRU replacement and write-back support. The design addresses key technical challenges, including LRU management, dirty block handling, and synchronization. Comprehensive simulation and waveform analysis confirm correct functionality, efficient memory usage, and robust handling of all edge cases. The project provides a solid foundation for further exploration of cache architectures and performance optimization.
+
 # Cache Controller Project: Final Report
 
 ## 1. Overview of the Design and Implementation Process
@@ -98,13 +99,13 @@ The design emphasizes modularity and parameterization, allowing for easy adaptat
 This is the heart of the project. It implements a finite state machine (FSM) to manage the cache's behavior, including hit/miss detection, LRU management, and memory interactions.
 
 **Key Features:**
+
 - Parameterized for word size, block size, associativity, and more.
 - Receives CPU requests and determines if they are cache hits or misses.
 - On a miss, checks if eviction is needed (dirty block) and handles write-back.
 - Allocates new blocks from memory and updates the cache.
 - Manages LRU ages for all candidates.
 
-**Relevant Code:**
 ```verilog
 module cache_controller #(
     parameter WORD_SIZE = 32,  // 32 bits per word
@@ -118,14 +119,54 @@ module cache_controller #(
     parameter VALID_BIT = 1,  // 1 bit for valid flag
     parameter BANK = 4  // 4 banks
 ) (
-    input clk,
+        input clk,
     input rst_n,
-    // ... (signals omitted for brevity)
+
+    // CPU to cache controller signals
+    input [WORD_SIZE-1:0] cpu_req_addr,  // 1 word address
+    input [WORD_SIZE-1:0] cpu_req_datain,  // 1 word data input to write
+    output [WORD_SIZE-1:0] cpu_res_dataout,  // 1 word response data output to cpu
+    output reg cpu_res_ready,
+    input cpu_req_rw,  // r = 0, w = 1
+    input cpu_req_enable,
+
+    // Cache controller to main memory signals
+    output reg [WORD_SIZE-1:0] mem_req_addr, // BLOCK_OFFSET bits should be always 0 to align to 16 bytes
+    output [BLOCK_DATA_WIDTH-1:0] mem_req_dataout, // the 64 byte block to be written to main memory (on write back)
+    input [BLOCK_DATA_WIDTH-1:0] mem_req_datain, // the 64 byte block extracted from main memory (on read miss)
+    output reg mem_req_rw,  // r = 0, w = 1
+    output reg mem_req_enable,  // when reading/writing to main memory do not forget to activate
+
+    input mem_req_ready,  // main memory has valid data at mem_req_dataout
+
+    // Physical cache to cache controller signals
+    output reg cache_enable,  // indicates that the cache should do a write/read
+    output reg cache_rw,  // r = 0, w = 1,
+    input cache_ready,  // indicates that the cache has valid data at candidates
+
+    input [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_1, // candidate from cache line 1
+    input [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_2, // candidate from cache line 2
+    input [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_3, // candidate from cache line 3
+    input [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_4, // candidate from cache line 4
+
+    // assign CACHE_BANKS[0][INDEX][AGE_BITS_START + AGE_BITS - 1:AGE_BITS_START] = age_1 (when cache_enable = 1)
+    // assign CACHE_BANKS[1][INDEX][AGE_BITS_START + AGE_BITS - 1:AGE_BITS_START] = age_2 (when cache_enable = 1)
+    // assign CACHE_BANKS[2][INDEX][AGE_BITS_START + AGE_BITS - 1:AGE_BITS_START] = age_3 (when cache_enable = 1)
+    // assign CACHE_BANKS[3][INDEX][AGE_BITS_START + AGE_BITS - 1:AGE_BITS_START] = age_4 (when cache_enable = 1)
+    output [AGE_BITS-1:0] age_1,
+    output [AGE_BITS-1:0] age_2,
+    output [AGE_BITS-1:0] age_3,
+    output [AGE_BITS-1:0] age_4,
+
+    output [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] candidate_write, // data to be written to the cache line when hit occurs
+    output [BANK-1:0] bank_selector // one hot encoding of the bank the candidate_write
 );
-// ... (FSM and logic as in the provided code)
+/// ...
 endmodule
 ```
+
 **Explanation:**
+
 - The FSM transitions through states: IDLE, CHECK_HIT, EVICT, ALLOCATE, SEND_TO_CACHE.
 - On a CPU request, the controller checks for a hit among the four candidates.
 - If a miss and the LRU candidate is dirty, it writes back to memory before allocation.
@@ -137,7 +178,6 @@ endmodule
 
 This module is used to update a specific word within a cache block, which is essential for write operations (both on hit and miss).
 
-**Relevant Code:**
 ```verilog
 module replacer #(
     parameter WORD_SIZE = 32,
@@ -165,7 +205,9 @@ module replacer #(
   end
 endmodule
 ```
+
 **Explanation:**
+
 - The `replacer` module takes a block of data and overwrites the word at the specified offset with new data.
 - Used for both write hits (updating a word in a cached block) and write misses (updating a word in a block fetched from memory).
 
@@ -176,23 +218,24 @@ endmodule
 This SystemVerilog testbench simulates a variety of scenarios to verify the cache controller's correctness.
 
 **Key Features:**
-- Parameterized to match the cache controller.
-- Generates clock and reset signals.
-- Provides tasks for CPU read/write requests and candidate provisioning.
-- Simulates memory responses and cache readiness.
-- Runs a suite of test cases: read/write hits, misses with/without eviction, and edge cases.
 
-**Relevant Code:**
+- Parameterized to match the cache controller.
+- Generates clock and reset signals, cache candidates and main memory mock data.
+- Provides tasks for CPU read/write requests and candidate provisioning.
+- Runs a suite of test cases: read/write hits, misses with/without eviction, and edge cases (hit/miss with empty cache lines)
+
 ```systemverilog
 module cache_controller_tb ();
   // Parameters
   parameter WORD_SIZE = 32;
   parameter BLOCK_OFFSET = 4;
-  // ... (other parameters)
+  // ...
+
   // Signals
   reg clk;
   reg rst_n;
-  // ... (other signals)
+  // ...
+
   // Instantiate the cache controller
   cache_controller #(
       .WORD_SIZE(WORD_SIZE),
@@ -203,17 +246,151 @@ module cache_controller_tb ();
       .rst_n(rst_n),
       // ...
   );
-  // Clock generation
+
   always begin
-    #5 clk = ~clk;
+        // Test case 1: Read hit in candidate 1
+    $display("\nTest Case 1: Read hit in candidate 1");
+    provide_candidates({1'b1, 1'b1, 2'b10, {9'd0, 12'hABC}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b01, {9'd0, 12'hDEF}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b00, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b11, {9'd0, 12'h456}, test_block_data_candidates});
+    @(posedge clk);
+    cpu_read({{9'd0}, {12'hABC}, {7'd0}, {4'd0}});  // This should hit in candidate 1
+    wait_for_cache_access();
+    wait (cpu_res_ready);
+    $display("Response data: 0x%08x, new age: %b, %b, %b, %b", cpu_res_dataout, age_1, age_2,
+             age_3, age_4);
+    wait (uut.current_state == uut.IDLE);
+
+    @(posedge clk);
+    @(posedge clk);
+
+    // Test case 2: Read miss without eviction
+    $display("\nTest Case 2: Read miss without eviction");
+    provide_candidates({1'b1, 1'b0, 2'b10, {9'd0, 12'hDEF}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b11, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b01, {9'd0, 12'h456}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b00, {9'd0, 12'h789}, test_block_data_candidates});
+    cpu_read(32'h000A_0000);
+    wait_for_mem_req();
+    wait (uut.current_state == uut.IDLE);
+    $display("Response data: 0x%08x, %h, bank: %b, new age: %b, %b, %b, %b", cpu_res_dataout,
+             uut.candidate_write, uut.bank_selector, age_1, age_2, age_3, age_4);
+
+    @(posedge clk);
+    @(posedge clk);
+
+    // Test Case 3: Write hit in candidate 1
+    $display("\nTest Case 3: Write hit in candidate 1");
+    provide_candidates({1'b1, 1'b1, 2'b11, {9'd0, 12'hDEF}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b10, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b01, {9'd0, 12'h456}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b00, {9'd0, 12'h789}, test_block_data_candidates});
+    test_word_data = 32'hCAFE_BABE;
+    cpu_write({{9'd0}, {12'hDEF}, {7'd0}, {4'd1}},
+              test_word_data);  // This should hit in candidate 3
+    wait_for_cache_access();
+    wait (uut.current_state == uut.IDLE);
+    $display("Write successful, candidate write data: %h, new ages: %b, %b, %b, %b",
+             uut.candidate_write, age_1, age_2, age_3, age_4);
+
+    @(posedge clk);
+    @(posedge clk);
+
+    // Test case 4: Write miss no eviction
+    $display("\nTest Case 4: Write miss no eviction");
+    provide_candidates({1'b1, 1'b0, 2'b11, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b10, {9'd0, 12'h456}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b01, {9'd0, 12'h789}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b00, {9'd0, 12'hABC}, test_block_data_candidates});
+    test_word_data = 32'hCAFE_BABE;
+    cpu_write({{9'd0}, {12'hDEF}, {7'd0}, {4'd1}}, test_word_data);
+    wait_for_cache_access();
+    wait_for_mem_req();
+    wait (uut.current_state == uut.IDLE);
+    $display("Write successful, candidate write data: %h, new ages: %b, %b, %b, %b",
+             uut.candidate_write, age_1, age_2, age_3, age_4);
+
+    @(posedge clk);
+    @(posedge clk);
+
+
+    // Test case 5: Write hit with eviction
+    $display("\nTest Case 5: Write hit with eviction");
+    provide_candidates({1'b1, 1'b1, 2'b11, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b10, {9'd0, 12'h456}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b01, {9'd0, 12'h789}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b00, {9'd0, 12'hABC}, test_block_data_candidates});
+    test_word_data = 32'hCAFE_BABE;
+    cpu_write({{9'd0}, {12'hDEF}, {7'd0}, {4'd1}}, test_word_data);
+    wait_for_cache_access();
+    wait_for_mem_req();
+    wait_for_mem_req();
+    wait (uut.current_state == uut.IDLE);
+    $display("Write successful, candidate write data: %h, new ages: %b, %b, %b, %b",
+             uut.candidate_write, age_1, age_2, age_3, age_4);
+
+    @(posedge clk);
+    @(posedge clk);
+
+
+    // Test case 6: Read miss with eviction
+    $display("\nTest Case 6: Read miss with eviction");
+    provide_candidates({1'b1, 1'b1, 2'b11, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b10, {9'd0, 12'h456}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b01, {9'd0, 12'h789}, test_block_data_candidates}, {
+                       1'b1, 1'b1, 2'b00, {9'd0, 12'hABC}, test_block_data_candidates});
+    cpu_read({{9'd0}, {12'hDEF}, {7'd0}, {4'd1}});
+    wait_for_cache_access();
+    wait_for_mem_req();
+    wait_for_mem_req();
+    wait (cpu_res_ready);
+    $display(
+        "Read successful, CPU data: 0x%h, candidate write data: 0x%h, new ages: %b, %b, %b, %b",
+        cpu_res_dataout, uut.candidate_write, age_1, age_2, age_3, age_4);
+    wait (uut.current_state == uut.IDLE);
+
+    @(posedge clk);
+    @(posedge clk);
+
+    // Test case 7: Read miss with empty candidates
+    $display("\nTest Case 7: Read miss with empty candidates");
+    provide_candidates({1'b1, 1'b1, 2'b01, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b00, {9'd0, 12'h0}, {BLOCK_DATA_WIDTH{1'b0}}}, {
+                       1'b0, 1'b0, 2'b00, {9'd0, 12'h0}, {BLOCK_DATA_WIDTH{1'b0}}}, {
+                       1'b0, 1'b0, 2'b00, {9'd0, 12'h0}, {BLOCK_DATA_WIDTH{1'b0}}});
+    cpu_read({{9'd0}, {12'hDEF}, {7'd0}, {4'd2}});
+    wait_for_cache_access();
+    wait_for_mem_req();
+    wait (cpu_res_ready);
+    $display(
+        "Read successful, CPU data: 0x%h, candidate write data: 0x%h, new ages: %b, %b, %b, %b",
+        cpu_res_dataout, uut.candidate_write, age_1, age_2, age_3, age_4);
+    wait (uut.current_state == uut.IDLE);
+
+    @(posedge clk);
+    @(posedge clk);
+
+    // Test case 8: Write miss with empty candidates
+    $display("\nTest Case 8: Write miss with empty candidates");
+    provide_candidates({1'b1, 1'b1, 2'b01, {9'd0, 12'h123}, test_block_data_candidates}, {
+                       1'b1, 1'b0, 2'b00, {9'd0, 12'h777}, {BLOCK_DATA_WIDTH{1'b0}}}, {
+                       1'b0, 1'b0, 2'b00, {9'd0, 12'h0}, {BLOCK_DATA_WIDTH{1'b0}}}, {
+                       1'b0, 1'b0, 2'b00, {9'd0, 12'h0}, {BLOCK_DATA_WIDTH{1'b0}}});
+    test_word_data = 32'hCAFE_BABE;
+    cpu_write({{9'd0}, {12'hDEF}, {7'd0}, {4'd1}}, test_word_data);
+    wait_for_cache_access();
+    wait_for_mem_req();
+
+    wait (uut.current_state == uut.IDLE);
+    $display("Write successful, candidate write data: %h, new ages: %b, %b, %b, %b",
+             uut.candidate_write, age_1, age_2, age_3, age_4);
+
   end
-  // ... (test tasks and test cases)
 endmodule
 ```
+
 **Explanation:**
-- The testbench initializes the cache and memory, then applies a series of read and write requests.
-- It checks for correct data output, LRU age updates, and proper handling of hits, misses, and evictions.
-- VCD waveform dumping is enabled for detailed analysis.
 
 ---
 
