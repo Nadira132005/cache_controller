@@ -20,11 +20,102 @@ The design emphasizes modularity and parameterization, allowing for easy adaptat
 
 **Solution:** Each cache line maintains a 2-bit age field. On every access, the controller updates the ages: the accessed line is set to 0, and all valid lines with a lower age are incremented. This logic is implemented combinationally and verified in the testbench. On miss all ages are updated because the block that will be replaced is the oldest one and overflow will correctly make it the youngest. The LRU candidate is selected by finding the line with the maximum age.
 
+**Relevant Code:**
+```verilog
+// Age calculation when there is a hit
+// For the accessed candidate: reset to 0
+// For other valid candidates: increment only if their age was less than the hit element's age
+wire [AGE_BITS-1:0] age_1_hit = hit_1 ? 2'b00 : candidate_1_valid ? (candidate_1_age < hit_element_age ? candidate_1_age + 1 : candidate_1_age) : candidate_1_age;
+wire [AGE_BITS-1:0] age_2_hit = hit_2 ? 2'b00 : candidate_2_valid ? (candidate_2_age < hit_element_age ? candidate_2_age + 1 : candidate_2_age) : candidate_2_age;
+wire [AGE_BITS-1:0] age_3_hit = hit_3 ? 2'b00 : candidate_3_valid ? (candidate_3_age < hit_element_age ? candidate_3_age + 1 : candidate_3_age) : candidate_3_age;
+wire [AGE_BITS-1:0] age_4_hit = hit_4 ? 2'b00 : candidate_4_valid ? (candidate_4_age < hit_element_age ? candidate_4_age + 1 : candidate_4_age) : candidate_4_age;
+
+// Age calculation when there is a miss
+// For valid candidates: increment age (allow overflow back to 00)
+// For invalid candidates: keep current age
+wire [AGE_BITS-1:0] age_1_miss = candidate_1_valid ? candidate_1_age + 1 : candidate_1_age;
+wire [AGE_BITS-1:0] age_2_miss = candidate_2_valid ? candidate_2_age + 1 : candidate_2_age;
+wire [AGE_BITS-1:0] age_3_miss = candidate_3_valid ? candidate_3_age + 1 : candidate_3_age;
+wire [AGE_BITS-1:0] age_4_miss = candidate_4_valid ? candidate_4_age + 1 : candidate_4_age;
+
+// Select between hit and miss age calculations based on whether there was a hit
+assign age_1 = hit ? age_1_hit : age_1_miss;
+assign age_2 = hit ? age_2_hit : age_2_miss;
+assign age_3 = hit ? age_3_hit : age_3_miss;
+assign age_4 = hit ? age_4_hit : age_4_miss;
+
+// The least recently used (LRU) candidate is the one with the highest age (one hot encoding)
+wire [BANK-1:0] LRU_candidate;
+assign LRU_candidate = {
+  (candidate_4_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
+  (candidate_3_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
+  (candidate_2_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11),
+  (candidate_1_reg[AGE_START+AGE_BITS-1:AGE_START] == 2'b11)
+};
+```
+
 ### b. Handling Write-Backs and Dirty Blocks
 
 **Challenge:** Correctly managing dirty blocks during eviction, ensuring that modified data is written back to memory before replacement.
 
 **Solution:** The controller checks the dirty and valid bits of the LRU candidate on a miss. If eviction is required, the block is written to memory before the new block is allocated. The FSM includes explicit EVICT and ALLOCATE states to sequence these operations, and the testbench verifies correct memory transactions.
+
+**Relevant Code:**
+```verilog
+// If there is a cache MISS and the LRU candidate is dirty, we need to evict it
+assign evict = miss && (
+    (LRU_candidate[0] && evict_1) ||
+    (LRU_candidate[1] && evict_2) ||
+    (LRU_candidate[2] && evict_3) ||
+    (LRU_candidate[3] && evict_4)
+);
+
+// Send the evicted block to main memory
+assign mem_req_dataout = evict ? (
+    LRU_candidate[0] ? candidate_1_reg[BLOCK_DATA_WIDTH-1:0] :
+    LRU_candidate[1] ? candidate_2_reg[BLOCK_DATA_WIDTH-1:0] :
+    LRU_candidate[2] ? candidate_3_reg[BLOCK_DATA_WIDTH-1:0] :
+    LRU_candidate[3] ? candidate_4_reg[BLOCK_DATA_WIDTH-1:0] : 32'd0
+) : 32'dz;
+
+// State machine transitions for eviction and allocation
+parameter EVICT = 3'b010;
+parameter ALLOCATE = 3'b011;
+
+always @(*) begin
+  // ...
+  case (current_state)
+    // ...
+    CHECK_HIT: begin
+      if (cache_ready_reg) begin
+        if (hit) begin
+          next_state = SEND_TO_CACHE;  // Cache hit, send data to CPU or write to cache
+        end else begin
+          // Miss: check if we need to evict
+          if (evict) begin
+            next_state = EVICT;  // Need to evict before allocating
+          end else begin
+            next_state = ALLOCATE;  // No eviction needed
+          end
+        end
+      end
+    end
+
+    EVICT: begin
+      if (mem_req_ready) begin
+        next_state = ALLOCATE;
+      end
+    end
+
+    ALLOCATE: begin
+      if (mem_req_ready) begin
+        next_state = SEND_TO_CACHE;
+      end
+    end
+    // ...
+  endcase
+end
+```
 
 ### c. Synchronization and Signal Timing
 
@@ -32,17 +123,153 @@ The design emphasizes modularity and parameterization, allowing for easy adaptat
 
 **Solution:** The design uses registered signals and flip-flop modules to synchronize candidate data and control signals. The testbench provides realistic clocking and ready/enable pulses, and the controller FSM waits for appropriate ready signals before proceeding to the next state.
 
+**Relevant Code:**
+```verilog
+// Registered candidates as registers
+wire [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0]
+    candidate_1_reg, candidate_2_reg, candidate_3_reg, candidate_4_reg;
+
+wire cache_ready_intermediate;
+flipflop_d #(
+    .WIDTH(1)
+) cache_ready_inter (
+    .clk(clk),
+    .rst_n(rst_n),
+    .load(1'b1),
+    .d(cache_ready),
+    .q(cache_ready_intermediate)
+);
+
+wire cache_ready_reg;
+flipflop_d #(
+    .WIDTH(1)
+) cache_ready_reg_delay (
+    .clk(clk),
+    .rst_n(rst_n),
+    .load(1'b1),
+    .d(cache_ready_intermediate),
+    .q(cache_ready_reg)
+);
+
+// Register candidate data when cache_ready is active
+flipflop_d #(
+    .WIDTH(VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH)
+) candidate_1_reg_inst (
+    .clk(clk),
+    .rst_n(rst_n),
+    .load(cache_ready & ~cache_rw),  // Only load when cache_ready is active
+    .d(candidate_1),
+    .q(candidate_1_reg)
+);
+// ... (similar for candidate_2_reg_inst, candidate_3_reg_inst, candidate_4_reg_inst)
+```
+
 ### d. Parameterization and Modularity
 
 **Challenge:** Making the design flexible and reusable for different cache sizes and associativities.
 
 **Solution:** All key parameters (word size, block size, set count, associativity, etc.) are defined as module parameters. The replacer and block_selector modules are also parameterized, supporting easy scaling and adaptation.
 
+**Relevant Code:**
+```verilog
+module cache_controller #(
+    parameter WORD_SIZE = 32,  // 32 bits per word
+    parameter BLOCK_OFFSET = 4,  // 4 bits for block offset (16 words per block)
+    parameter SETS = 128,  // 128 sets in one bank
+    parameter SETS_BITS = 7,  // log2(128) = 7 bits for set index
+    parameter AGE_BITS = 2,  // 2 bits to represent oldest among 4 candidates
+    parameter TAG_BITS = 21,  // 21 bits for tag (32 - BLOCK_OFFSET - log2(SETS))
+    parameter BLOCK_DATA_WIDTH = 512,  // 512 bits for data (64 bytes per block)
+    parameter DIRTY_BIT = 1,  // 1 bit for dirty flag,
+    parameter VALID_BIT = 1,  // 1 bit for valid flag
+    parameter BANK = 4  // 4 banks
+) (
+    // ...
+);
+
+module replacer #(
+    parameter WORD_SIZE = 32,
+    parameter BLOCK_SIZE = 512,
+    parameter NUM_SEGMENTS = 16,
+    parameter NUM_SEGMENTS_LOG = 4
+) (
+    // ...
+);
+```
+
 ### e. Comprehensive Verification
 
 **Challenge:** Creating a testbench that covers all relevant scenarios, including hits, misses, write-backs, and edge cases (e.g., empty candidates).
 
 **Solution:** The SystemVerilog testbench (`cache_controller_tb.sv`) includes tasks for read/write requests, candidate provisioning, and memory response simulation. It runs a suite of test cases covering read/write hits, misses with and without eviction, and operations with empty or partially filled sets. The testbench also generates VCD waveforms for detailed analysis.
+
+**Relevant Code:**
+```systemverilog
+// Task to apply a CPU read request
+task cpu_read(input [WORD_SIZE-1:0] addr);
+  cpu_req_enable = 1;
+  cpu_req_rw = 0;
+  cpu_req_addr = addr;
+  @(posedge clk);
+  cpu_req_enable = 0;
+  $display("CPU READ request for address 0x%08x. Waiting for response...", addr);
+endtask
+
+// Task to apply a CPU write request
+task cpu_write(input [WORD_SIZE-1:0] addr, input [WORD_SIZE-1:0] data);
+  cpu_req_enable = 1;
+  cpu_req_rw = 1;
+  cpu_req_addr = addr;
+  cpu_req_datain = data;
+  @(posedge clk);
+  cpu_req_enable = 0;
+  cpu_req_rw = 0;
+  $display("CPU WRITE request: address 0x%08x, data 0x%08x", addr, data);
+endtask
+
+// Task to provide cache candidates with specific data
+task provide_candidates(
+    input [VALID_BIT + DIRTY_BIT + AGE_BITS + TAG_BITS + BLOCK_DATA_WIDTH - 1:0] _candidate1,
+    _candidate2, _candidate3, _candidate4);
+  candidate_1 = _candidate1;
+  candidate_2 = _candidate2;
+  candidate_3 = _candidate3;
+  candidate_4 = _candidate4;
+endtask
+
+// Task to wait for memory request to be asserted
+task wait_for_mem_req();
+  wait (mem_req_enable);
+  $display("Memory request asserted at time %0t", $time);
+  mem_req_ready = 1;  // Indicate memory has valid data
+  @(posedge clk);
+  mem_req_ready = 0;
+endtask
+
+// Task to wait for cache access to complete
+task wait_for_cache_access();
+  wait (cache_ready);
+  $display("Cache access completed at time %0t", $time);
+endtask
+
+// Example test case
+initial begin
+  // ...
+  $display("\nTest Case 1: Read hit in candidate 1");
+  provide_candidates({1'b1, 1'b1, 2'b10, {9'd0, 12'hABC}, test_block_data_candidates}, {
+                     1'b1, 1'b1, 2'b01, {9'd0, 12'hDEF}, test_block_data_candidates}, {
+                     1'b1, 1'b1, 2'b00, {9'd0, 12'h123}, test_block_data_candidates}, {
+                     1'b1, 1'b1, 2'b11, {9'd0, 12'h456}, test_block_data_candidates});
+  @(posedge clk);
+  cpu_read({{9'd0}, {12'hABC}, {7'd0}, {4'd0}});  // This should hit in candidate 1
+  wait_for_cache_access();
+  wait (cpu_res_ready);
+  $display("Response data: 0x%08x, new age: %b, %b, %b, %b", cpu_res_dataout, age_1, age_2,
+           age_3, age_4);
+  wait (uut.current_state == uut.IDLE);
+  // ...
+end
+```
 
 ## 3. Analysis of Performance Data Collected During Simulations
 
